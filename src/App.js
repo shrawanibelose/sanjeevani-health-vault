@@ -75,6 +75,17 @@ const Dashboard = ({ session, darkMode, setDarkMode }) => {
   const [shortSummary, setShortSummary] = useState("");
   const [detailedReport, setDetailedReport] = useState("");
   
+  useEffect(() => {
+    document.title = "Sanjeevani | Dashboard";
+  }, []); 
+
+  useEffect(() => {
+    if (session) {
+      fetchRecords();
+      logAction(session.user.id, 'LOGIN', 'User accessed the health dashboard');
+    }
+  }, [session]);
+  
 useEffect(() => {
   setHasConsented(false); 
   setAiInsight("");
