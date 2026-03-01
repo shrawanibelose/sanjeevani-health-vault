@@ -36,3 +36,18 @@
     transform: rotate(360deg);
   }
 }
+/* This ensures buttons and inputs never get wider than the phone screen */
+button, input, .profile-field {
+    width: 100%;
+    max-width: 400px; /* This keeps them from looking too huge on desktop */
+    box-sizing: border-box; /* This keeps padding from making the button wider than the screen */
+    margin: 10px 0; /* Adds a little space between buttons so they don't touch */
+}
+/* This fixes the "zoom out" issue on the Profile page */
+.profile-container, .dashboard-container {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden; /* This prevents the horizontal "shaking" on mobile */
+}
