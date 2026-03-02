@@ -1,6 +1,7 @@
 {
   "name": "frontend",
   "version": "0.1.0",
+  "homepage": "https://sanjeevani-health-vault.vercel.app",
   "private": true,
   "dependencies": {
     "@capacitor/camera": "^8.0.0",
