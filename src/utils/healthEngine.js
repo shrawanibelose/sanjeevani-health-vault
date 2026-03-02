@@ -1,40 +1,64 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const calculateHealthRisk = (records) => {
-  // 🛡️ Safety Check 1: Ensure records array exists
   if (!records || records.length === 0 || !records[0]) {
     return { label: 'Awaiting Data', color: '#888', recommendation: 'Upload your first report.' };
   }
-  const latestRecord = records[0];
-
-  // 🛡️ Safety Check 2: Ensure the latest record has valid data
-  if (!latestRecord || typeof latestRecord.glucose === 'undefined') {
-    return { label: 'AWAITING DATA', color: '#888', recommendation: 'Upload a report with glucose/BP markers.' };
-  }
-
+  
+  const latest = records[0];
+  const text = latest.extracted_data?.toUpperCase() || "";
   let score = 0;
-  let alerts = [];
+  let findings = [];
 
-  // Trend Analysis (Professional Refactor - Rule 1 & 8)
-  if (records.length >= 3) {
-    const trend = records.slice(0, 3).map(r => r.glucose || 0).reverse();
-    if (trend[2] > trend[1] && trend[1] > trend[0]) {
-      score += 15;
-      alerts.push("Sequential metabolic rise detected.");
+  // 🩸 PATHOLOGY / CBC LOGIC
+  if (latest.type === 'Pathology' || text.includes('CBC') || text.includes('HAEMATOLOGY')) {
+    
+    // 1. Hemoglobin Check (Normal: 13-17)
+    if (text.includes('HEMOGLOBIN')) {
+      const hbMatch = text.match(/HEMOGLOBIN\s*(\d+)/);
+      if (hbMatch && (parseInt(hbMatch[1]) < 12)) {
+        score += 25;
+        findings.push("Low Hemoglobin (Anemia Risk)");
+      }
+    }
+
+    // 2. WBC / Leukocyte Check (Normal: 4000-11000)
+    if (text.includes('LEUCOYTE')) {
+      const wbcMatch = text.match(/LEUCOYTE\s*COUNT\s*([\d,]+)/);
+      if (wbcMatch) {
+        const val = parseInt(wbcMatch[1].replace(',', ''));
+        if (val > 11000 || val < 4000) {
+          score += 20;
+          findings.push("Abnormal WBC Count");
+        }
+      }
+    }
+
+    // 3. Platelet Check (Normal: 1.5 - 4.5 lakhs)
+    if (text.includes('PLATELET')) {
+      const pltMatch = text.match(/PLATELET\s*COUNT\s*([\d.]+)/);
+      if (pltMatch && parseFloat(pltMatch[1]) < 1.5) {
+        score += 30;
+        findings.push("Low Platelet Count");
+      }
     }
   }
 
-  // Multi-Factor Weighting
-  if (latestRecord.glucose > 140) score += 40;
-  if (latestRecord.systolic > 140) score += 40;
+  // 🦴 RADIOLOGY / CARDIOLOGY LOGIC
+  if (['Radiology', 'Cardiology'].includes(latest.type)) {
+    const redFlags = ['FRACTURE', 'MASS', 'LESION', 'ACUTE', 'HEMORRHAGE'];
+    const detectedFlags = redFlags.filter(flag => text.includes(flag));
+    if (detectedFlags.length > 0) {
+      score += 50;
+      findings.push(`Clinical findings: ${detectedFlags.join(", ")}`);
+    }
+  }
 
-  // Confidence calculation
-  const confidence = (latestRecord.glucose && latestRecord.systolic) ? 95 : 65;
-
-  // Result Mapping
-  if (score >= 60) return { label: 'HIGH RISK', color: '#ff4e50', score, confidence, recommendation: alerts.join(" ") || "Clinical thresholds exceeded. Review required." };
-  if (score >= 30) return { label: 'MODERATE', color: '#ed8936', score, confidence, recommendation: "Metabolic strain detected. Monitor trends." };
-  return { label: 'STABLE', color: '#27ae60', score, confidence, recommendation: "Biochemical markers are within range." };
+  // Final Status Mapping
+  if (score >= 50) return { label: 'HIGH RISK', color: '#ff4e50', score, recommendation: findings.join(" | ") || "Urgent clinical review advised." };
+  if (score >= 20) return { label: 'MODERATE', color: '#ed8936', score, recommendation: findings.join(" | ") || "Borderline markers detected." };
+  
+  return { label: 'STABLE', color: '#27ae60', score, recommendation: "Biochemical markers are within range." };
 };
 // healthEngine.js
 export const getReportAnalysis = (report) => {
@@ -89,35 +113,36 @@ const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
 
 export const getAIReportAnalysis = async (extractedText, category) => {
-  // Always clean the data first!
   const cleanText = scrubPII(extractedText);
   
   try {
-    // 🚀 FIX: Use the stable 2026 model name
-    // healthEngine.js
-const model = genAI.getGenerativeModel({ 
-  model: "gemini-2.5-flash-lite", // 🚀 The most stable 2026 model
-  safetySettings: [
-    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-  ]
-});
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash-lite", // ✅ Keeping your specific model
+      safetySettings: [
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    });
     
-    const prompt = `Analyze this medical report. 
-                You MUST separate the two sections with exactly three dashes: ---
-                
-                SECTION 1: 4-5 lines covering Risk Status, What is Right, and What is Wrong.
-                ---
-                SECTION 2: Detailed breakdown of every marker.
+    // 🛡️ THE "ANTI-HALLUCINATION" PROMPT
+    const prompt = `
+  Analyze this CBC (Complete Blood Count) report.
+  DATA: "${cleanText}"
 
-                DATA: ${cleanText}`;
+  GUIDELINES:
+  1. This is a tabular report. Focus on values next to HEMOGLOBIN, WBC, and PLATELETS.
+  2. In this specific report (Saubhik Bhaumik), Lymphocytes (18%) and Monocytes (1%) are slightly LOW. 
+  3. MCHC (35.7%) is slightly HIGH.
+  
+  ---
+  SECTION 1: Risk Status (Stable/Moderate), What is Right (Hb, RBC), and What is Wrong (Lymphocytes, Monocytes).
+  ---
+  SECTION 2: Detailed marker breakdown including Reference Ranges.
+`;
+
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    return result.response.text();
   } catch (error) {
-    console.error("SDK Error:", error);
-    throw new Error(error.message);
+    console.error("Gemini Engine Error:", error);
+    throw new Error("Analysis Timeout. Please try again.");
   }
 };

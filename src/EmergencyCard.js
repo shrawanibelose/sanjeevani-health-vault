@@ -1,7 +1,6 @@
 import React from 'react';
 
 const EmergencyCard = ({ session, onBack }) => {
-  // In a real app, these would come from a 'Profile' table in Supabase
   const patientInfo = {
     name: "Shrawani",
     bloodGroup: "B+ Positive",
@@ -41,14 +40,11 @@ const EmergencyCard = ({ session, onBack }) => {
 
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <p style={{ color: '#888' }}>Show this to Medical Personnel</p>
-          {/* We will add a QR code here later! */}
         </div>
       </div>
     </div>
   );
 };
-
-// Senior-friendly styling
 const cardContainer = { border: '4px solid #d90429', borderRadius: '20px', overflow: 'hidden', backgroundColor: 'white', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' };
 const headerStyle = { backgroundColor: '#d90429', padding: '15px', textAlign: 'center' };
 const infoSection = { padding: '30px' };

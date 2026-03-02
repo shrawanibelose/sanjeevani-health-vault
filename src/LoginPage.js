@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from './utils/supabaseClient';
-
-/**
- * 🔐 PROFESSIONAL LOGIN COMPONENT
- * Implements theme-aware styling and high-contrast SVG toggles.
- */
+ 
 const LoginPage = ({ theme, onShowSignUp }) => {
   const [identifier, setIdentifier] = useState(''); // Email or Phone
   const [password, setPassword] = useState('');
@@ -25,7 +21,6 @@ const LoginPage = ({ theme, onShowSignUp }) => {
       const { error } = await supabase.auth.signInWithPassword({
         ...loginData,
         options: {
-          // 🛡️ Persistence ensures session remains based on user preference
           persistSession: rememberMe 
         }
       });
@@ -39,7 +34,6 @@ const LoginPage = ({ theme, onShowSignUp }) => {
   };
 
   return (
-    /* 🛡️ Background and text color now follow the Slate-Blue theme */
     <div style={{...authContainer, backgroundColor: theme?.bg || '#f0fdfa', minHeight: '100vh'}}>
       <h2 style={{color: theme?.text || '#1a535c'}}>🩺 Sanjeevani</h2>
       <p style={{fontSize: '13px', color: theme?.subText || '#888', marginBottom: '20px'}}>
@@ -76,7 +70,6 @@ const LoginPage = ({ theme, onShowSignUp }) => {
             required
           />
           
-          {/* 👁️ Professional Eye Toggle (Rule 8: No Emojis) */}
           <button 
             type="button"
             onClick={() => setShowPassword(!showPassword)}

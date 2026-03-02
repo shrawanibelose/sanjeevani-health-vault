@@ -25,6 +25,19 @@ const decryptData = (cipher) => {
     return 'Decryption Error'; 
   }
 };
+const verifyMedicalDocument = async (text) => {
+  try {
+    // We reuse your existing AI analysis engine to verify content
+    const response = await getAIReportAnalysis(
+      `Verify if the following text is from a medical report, lab result, or prescription. 
+       Answer only with "VALID" or "INVALID". Text: ${text.substring(0, 500)}`, 
+      "Verification"
+    );
+    return response.includes("VALID");
+  } catch (e) {
+    return true; // Fallback to allow if API fails
+  }
+};
 
 const logAction = async (userId, actionType, description) => {
   const { error } = await supabase
@@ -173,7 +186,16 @@ const calculateAge = (dob) => {
     const birthDate = new Date(dob);
     return Math.abs(new Date(Date.now() - birthDate.getTime()).getUTCFullYear() - 1970);
   };
-
+const handleProfileUpdate = () => {
+  const now = new Date();
+  const formattedDate = `${now.getDate()} ${now.toLocaleString('en-GB', { month: 'short' })} ${now.getFullYear()}`;
+  
+  // This updates the local state so the UI changes immediately
+  setLastUpdated(formattedDate); 
+  
+  // Now call your existing database save logic
+  handleProfileSave(); 
+};
   const handleProfileSave = async () => {
   if (!profile.blood_group || !profile.emergency_phone || !profile.full_name) {
     alert("⚠️ Required: Name, Blood Group, and SOS Phone!");
@@ -247,7 +269,7 @@ const handleFileUpload = async (event) => {
   if (!file) return;
 
   const MAX_SIZE = 5 * 1024 * 1024;
-  const ALLOWED_TYPES = ['image/jpeg','image/jpg', 'image/png', 'application/pdf'];
+  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
 
   if (file.size > MAX_SIZE) {
     alert("❌ Error: File too large (Max 5MB).");
@@ -261,14 +283,38 @@ const handleFileUpload = async (event) => {
   try {
     setUploading(true);
 
-    // 2. ✨ THE OCR STEP: Extract text before saving
+    // 1. ✨ IMPROVED OCR STEP
     let extractedText = "";
     if (file.type.startsWith('image/')) {
-      // We use Tesseract to "read" the image file
+      // We add 'eng' and a second pass to ensure medical terms are caught
       const { data: { text } } = await Tesseract.recognize(file, 'eng');
       extractedText = text;
     } else if (file.type === 'application/pdf') {
-      extractedText = "PDF content extraction requires a separate worker logic.";
+      extractedText = "PDF content extraction requires specialized worker logic.";
+    }
+
+    // 🛡️ 2. HYBRID SECURITY GATE
+    const upperText = extractedText.toUpperCase();
+    // List of markers found in your CBC report
+    const clinicalMarkers = ['HEMOGLOBIN', 'LEUCOYTE', 'PLATELET', 'HAEMATOLOGY', 'LYMPHOCYTE', 'MCHC', 'RBC'];
+    const hasClinicalMarkers = clinicalMarkers.some(marker => upperText.includes(marker));
+
+    if (extractedText.length > 10 && !hasClinicalMarkers) { 
+      // Only call AI if we don't see obvious medical keywords (prevents false blocks)
+      const verificationPrompt = `
+        Determine if this text belongs to a medical lab report or prescription. 
+        Respond ONLY with "VALID" or "INVALID". 
+        Text: ${extractedText.substring(0, 600)}
+      `;
+      
+      const aiResponse = await getAIReportAnalysis(verificationPrompt, "SecurityCheck");
+      
+      if (aiResponse.includes("INVALID")) {
+        alert("🚫 SECURITY BLOCK: This document does not appear to be a medical record. If this is a mistake, ensure the 'Test Names' are clearly visible.");
+        setUploading(false);
+        logAction(session.user.id, 'SECURITY_BLOCK', `Blocked: ${file.name}`);
+        return; 
+      }
     }
 
     const fileName = `${Date.now()}_${file.name}`;
@@ -285,7 +331,7 @@ const handleFileUpload = async (event) => {
       name: customName || file.name,
       type: category,
       file_url: publicUrl,
-      extracted_data: extractedText, // 📍 CRITICAL: This fills the empty column!
+      extracted_data: extractedText, 
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     };
 
@@ -298,12 +344,14 @@ const handleFileUpload = async (event) => {
 
     if (data) {
       setRecords([data[0], ...records]);
-      alert("✅ Upload & AI Extraction Successful!");
+      alert("✅ Upload Verified & Secured in Vault!");
+      logAction(session.user.id, 'UPLOAD', `Successfully secured record: ${newRecord.name}`);
     }
   } catch (error) {
     alert("Error: " + error.message);
   } finally {
     setUploading(false);
+    setCustomName(''); 
   }
 };
 // 2. ONLY declare the variable ONCE here
@@ -428,8 +476,9 @@ const getRiskStyles = (summary) => {
     label: "NORMAL STATUS" 
   };
 };
-    return (
- <div style={{...dashStyle(theme), backgroundColor: theme.bg, color: theme.text, transition: '0.3s'}}>
+  return (
+ <div style={{...dashStyle(theme), display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+    <div style={{ width: '100%', maxWidth: '1200px', padding: '15px', boxSizing: 'border-box' }}>
      
     {/* 1. HEADER & EMERGENCY RIBBONS */}
 {/* --- CORRECTED HEADER SECTION --- */}
@@ -546,21 +595,20 @@ const getRiskStyles = (summary) => {
     </p>
   </div>
 </div>
-
       
-   {/* 3. UPDATED RECORDS SECTION WITH INTEGRATED SEARCH */}
+  {/* 3. Medical record vault */}
 <div className="hover-card" style={{...actionCard(theme, darkMode), textAlign: 'left'}}>
   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
     <h3 style={{color: theme.text, margin: 0, fontSize: '16px'}}>📁 My Medical Records</h3>
     <input 
-  style={{
-    ...smallInput, 
-    maxWidth: '200px', 
-    padding: '8px 12px',
-    backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa', 
-    color: theme.text, 
-    border: `1px solid ${theme.border}`
-  }}
+      style={{
+        ...smallInput, 
+        maxWidth: '200px', 
+        padding: '8px 12px',
+        backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa', 
+        color: theme.text, 
+        border: `1px solid ${theme.border}`
+      }}
       placeholder="🔍 Search reports..." 
       value={searchQuery} 
       onChange={(e) => setSearchQuery(e.target.value)}
@@ -578,66 +626,66 @@ const getRiskStyles = (summary) => {
     ))}
   </div>
 
- {records.length === 0 ? (
-  <div style={{textAlign: 'center', padding: '40px 20px', backgroundColor: theme.card, borderRadius: '15px', border: `1px dashed ${theme.border}`}}>
-    <span style={{fontSize: '40px'}}>📂</span>
-    <p style={{color: theme.text, fontSize: '14px', marginTop: '10px', fontWeight: '500'}}>No clinical records found.</p>
-    <p style={{color: theme.subText, fontSize: '12px'}}>Upload your first report to begin Heuristic AI analysis.</p>
-  </div>
-) : (
-  records
-    .filter(r => (filter === 'All' || r.type === filter) && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .map((rec, i) => {
-      const icons = { Radiology: '🦴', Pathology: '🩸', Cardiology: '❤️', Prescription: '📄' };
-      return (
-        <div key={rec.id || i} style={recordRow}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            <span style={{fontSize: '20px'}}>{icons[rec.type] || '📄'}</span>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>{rec.name}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <p style={{ margin: 0, fontSize: '10px', color: '#1a535c', fontWeight: 'bold' }}>
-                  <span title="AES-256 Encrypted" style={{fontSize: '10px'}}>🔐</span>
-                  {rec.type?.toUpperCase()} • {rec.date}
-                </p>
-                {/* 🛡️ Security Badge (Item 3 Upgrade) */}
-                {rec.file_hash && (
-                  <span style={secureBadgeStyle} title={`SHA-256: ${rec.file_hash}`}>
-                    🛡️ VERIFIED
-                  </span>
+  {records.length === 0 ? (
+    <div style={{textAlign: 'center', padding: '40px 20px', backgroundColor: theme.card, borderRadius: '15px', border: `1px dashed ${theme.border}`}}>
+      <span style={{fontSize: '40px'}}>📂</span>
+      <p style={{color: theme.text, fontSize: '14px', marginTop: '10px', fontWeight: '500'}}>No clinical records found.</p>
+      <p style={{color: theme.subText, fontSize: '12px'}}>Upload your first report to begin Heuristic AI analysis.</p>
+    </div>
+  ) : (
+    /* 🛡️ NEW GRID WRAPPER STARTS HERE */
+   <div style={{
+      display: 'flex',
+      flexDirection: 'column', // ✅ Forces one record per row
+      gap: '12px',
+      width: '100%'
+    }}>
+      {records
+        .filter(r => (filter === 'All' || r.type === filter) && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .map((rec, i) => {
+          const icons = { Radiology: '🦴', Pathology: '🩸', Cardiology: '❤️', Prescription: '📄' };
+          return (
+            <div key={rec.id || i} style={{...recordRow, margin: 0}}> {/* ✅ Added margin: 0 to prevent alignment issues */}
+              <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                <span style={{fontSize: '20px'}}>{icons[rec.type] || '📄'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>{rec.name}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <p style={{ margin: 0, fontSize: '10px', color: '#1a535c', fontWeight: 'bold' }}>
+                      <span title="AES-256 Encrypted" style={{fontSize: '10px'}}>🔐</span>
+                      {rec.type?.toUpperCase()} • {rec.date}
+                    </p>
+                    {rec.file_hash && (
+                      <span style={secureBadgeStyle} title={`SHA-256: ${rec.file_hash}`}>
+                        🛡️ VERIFIED
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{display:'flex', gap:'5px', alignItems: 'center', position: 'relative'}}>
+                <button style={{...viewBtn, background: '#1a535c'}} onClick={() => setPreviewUrl(rec.file_url)}> 👁️ VIEW </button>
+                <button style={{...viewBtn, background:'#4ecdc4'}} onClick={() => {setSelectedAnalysis(rec); setShowAnalysisModal(true);}}> ANALYZE </button>
+                <button 
+                  onClick={() => setActiveMenu(activeMenu === rec.id ? null : rec.id)} 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: theme.text, opacity: 0.8 }}> 
+                  ⋮ 
+                </button>
+
+                {activeMenu === rec.id && (
+                  <div style={dropdownStyle}>
+                    <button style={menuItemStyle} onClick={() => { handleDownload(rec.file_url, rec.name); setActiveMenu(null); }}> ⬇️ Download </button>
+                    <button style={menuItemStyle} onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(rec.file_url)}`); setActiveMenu(null); }}> 🔗 WhatsApp </button>
+                    <button style={{...menuItemStyle, color: '#ff6b6b'}} onClick={() => { handleDeleteReport(rec.id, rec.file_url); setActiveMenu(null); }}> 🗑️ Delete </button>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-          
-          <div style={{display:'flex', gap:'5px', alignItems: 'center', position: 'relative'}}>
-            <button style={{...viewBtn, background: '#1a535c'}} onClick={() => setPreviewUrl(rec.file_url)}> 👁️ VIEW </button>
-            <button style={{...viewBtn, background:'#4ecdc4'}} onClick={() => {setSelectedAnalysis(rec); setShowAnalysisModal(true);}}> ANALYZE </button>
-           <button 
-              onClick={() => setActiveMenu(activeMenu === rec.id ? null : rec.id)} 
-              style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer', 
-              fontSize: '20px', 
-              color: theme.text, // 🛡️ Fix: Matches the theme text color
-              opacity: 0.8       // 🛡️ Adds professional subtleness without being "dull"
-              }}> 
-               ⋮ 
-           </button>
-
-            {activeMenu === rec.id && (
-              <div style={dropdownStyle}>
-                <button style={menuItemStyle} onClick={() => { handleDownload(rec.file_url, rec.name); setActiveMenu(null); }}> ⬇️ Download </button>
-                <button style={menuItemStyle} onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent(rec.file_url)}`); setActiveMenu(null); }}> 🔗 WhatsApp </button>
-                <button style={{...menuItemStyle, color: '#ff6b6b'}} onClick={() => { handleDeleteReport(rec.id, rec.file_url); setActiveMenu(null); }}> 🗑️ Delete </button>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    })
-)}
+          );
+        })}
+    </div> 
+  )}
 </div>
 
  {/* 💊 Medication Manager Section */}
@@ -764,11 +812,36 @@ const getRiskStyles = (summary) => {
     <div style={profileSidebar(theme)} onClick={e => e.stopPropagation()}>
       
       {/* 1. Header Area */}
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '10px'}}>
-          <h2 style={{color: theme.text, margin: 0}}>Health Profile</h2>
-          <button onClick={() => setIsEditing(!isEditing)} style={editBtn}>{isEditing ? "CANCEL" : "EDIT"}</button>
+      <div style={{ 
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'center', 
+  paddingBottom: '15px',
+  marginBottom: '20px',
+  borderBottom: `1px solid ${theme.border}`,
+  position: 'sticky', // ✅ Keeps buttons visible while scrolling
+  top: 0,
+  backgroundColor: theme.card,
+  zIndex: 10
+}}>
+  <h2 style={{ color: theme.text, margin: 0, fontSize: '18px' }}>Health Profile</h2>
+  
+  <div style={{ display: 'flex', gap: '10px' }}>
+    <button 
+      onClick={() => setIsEditing(!isEditing)} 
+      style={{
+        ...editBtn,
+        padding: '6px 12px',
+        fontSize: '11px',
+        minWidth: '70px', // ✅ Ensures button doesn't shrink
+        display: 'block'  // ✅ Forces visibility
+      }}
+    >
+      {isEditing ? "CANCEL" : "EDIT"}
+    </button>
+    </div>
       </div>
-      <p style={{fontSize: '10px', color: '#888'}}>Last Updated: 15 Feb 2026</p>
+      <p style={{fontSize: '10px', color: '#888'}}>Last Updated: {lastUpdated}</p>
       <hr />
 
       {/* 2. Scrollable Content Area */}
@@ -836,7 +909,7 @@ const getRiskStyles = (summary) => {
             <input style={inputStyle} placeholder="SOS Contact Name" value={profile.sos_name} onChange={(e) => setProfile({...profile, sos_name: e.target.value})} />
             <input style={inputStyle} placeholder="SOS WhatsApp Number" value={profile.emergency_phone} onChange={(e) => setProfile({...profile, emergency_phone: e.target.value})} />
             
-            <button style={{...primaryBtn, marginTop: '10px'}} onClick={handleProfileSave}>SAVE CHANGES</button>
+            <button style={{...primaryBtn, marginTop: '10px'}} onClick={handleProfileUpdate}> SAVE CHANGES</button>
             
 
             <button style={{...closeBtn, width: '100%', marginBottom: '20px'}} onClick={() => setShowProfile(false)}>CLOSE</button>
@@ -900,7 +973,7 @@ const getRiskStyles = (summary) => {
     </div>
   </div>
 )}
-    {showQR && (
+ {showQR && (
   /* 🛡️ modalOverlay(theme) centers the card and uses the theme background to hide dashboard text */
   <div style={modalOverlay(theme)} onClick={() => setShowQR(false)}>
     <div style={qrModal(theme)} onClick={e => e.stopPropagation()}>
@@ -913,42 +986,88 @@ const getRiskStyles = (summary) => {
         <p style={{...dataLabel, marginBottom: '5px'}}>SECURE PATIENT ID</p>
         <h3 style={{margin: '0 0 15px 0', color: theme.text}}>{profile.full_name}</h3>
         
-        {/*  Centered QR Code Container */}
-<div style={{ 
-  display: 'flex', 
-  justifyContent: 'center', // ✅ Centers horizontally
-  alignItems: 'center',     // ✅ Centers vertically
-  margin: '20px 0', 
-  width: '100%' 
-}}>
-  <div style={{ 
-    background: 'white', 
-    padding: '15px', 
-    borderRadius: '15px', 
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
-  }}>
-    <QRCodeCanvas 
-      value={`SANJEEVANI_SECURE_VAULT: ${session.user.id}`} 
-      size={180} 
-      level={"H"}
-    />
-  </div>
-</div>
+        {/* 📋 Centered QR Code Container */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          margin: '20px 0', 
+          width: '100%' 
+        }}>
+          <div style={{ 
+            background: 'white', 
+            padding: '15px', 
+            borderRadius: '15px', 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+          }}>
+            <QRCodeCanvas 
+              id="emergency-qr-canvas" // ✅ ID added for download feature
+              // ✅ Value updated to show full medical details when scanned
+              value={`
+🏥 SANJEEVANI EMERGENCY PASS
+----------------------------
+NAME: ${profile.full_name}
+BLOOD GROUP: ${profile.blood_group}
+ALLERGIES: ${decryptData(profile.allergies)}
+CHRONIC: ${decryptData(profile.chronic_diseases)}
+EMERGENCY SOS: ${profile.emergency_phone}
+VAULT ID: ${session.user.id.slice(0,8)}
+              `.trim()} 
+              size={180} 
+              level={"H"}
+              includeMargin={true}
+            />
+          </div>
+        </div>
+
+        {/* 💾 New: Save to Gallery Button */}
+        <button 
+          onClick={() => {
+            const canvas = document.getElementById("emergency-qr-canvas");
+            if (canvas) {
+              const pngUrl = canvas.toDataURL("image/png");
+              const downloadLink = document.createElement("a");
+              downloadLink.href = pngUrl;
+              downloadLink.download = `Sanjeevani_Pass_${profile.full_name.replace(/\s/g, '_')}.png`;
+              document.body.appendChild(downloadLink);
+              downloadLink.click();
+              document.body.removeChild(downloadLink);
+            }
+          }}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: '#1a535c',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            marginBottom: '15px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          💾 SAVE TO GALLERY
+        </button>
 
         {/* 🚨 Centered Clinical Marker */}
-<div style={{
-  marginTop: '10px', 
-  padding: '15px', 
-  backgroundColor: theme.bg, 
-  borderRadius: '12px', 
-  border: `1px solid ${theme.border}`,
-  textAlign: 'center' // ✅ Centers the text
-}}>
-   <p style={{fontSize: '11px', color: theme.subText, margin: '0 0 5px 0', fontWeight: 'bold'}}>CRITICAL MARKER</p>
-   <b style={{fontSize: '24px', color: '#ff4e50'}}>
-     {profile.blood_group !== 'Not Set' ? profile.blood_group : "⚠️ UPDATE PROFILE"}
-   </b>
-</div>
+        <div style={{
+          marginTop: '10px', 
+          padding: '15px', 
+          backgroundColor: theme.bg, 
+          borderRadius: '12px', 
+          border: `1px solid ${theme.border}`,
+          textAlign: 'center'
+        }}>
+           <p style={{fontSize: '11px', color: theme.subText, margin: '0 0 5px 0', fontWeight: 'bold'}}>CRITICAL MARKER</p>
+           <b style={{fontSize: '24px', color: '#ff4e50'}}>
+             {profile.blood_group !== 'Not Set' ? profile.blood_group : "⚠️ UPDATE PROFILE"}
+           </b>
+        </div>
 
         <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
           <button style={callBtn('#ff4e50')} onClick={() => window.location.href = `tel:${profile.emergency_phone}`}>
@@ -970,9 +1089,10 @@ const getRiskStyles = (summary) => {
     <div 
       style={{
         ...qrModal(theme), 
-        maxWidth: '600px', 
-        textAlign: 'left', 
-        position: 'relative'
+        width: '95%',         // ✅ Fills mobile screen
+    maxWidth: '700px',    // ✅ Stays neat on Laptop
+    textAlign: 'left', 
+    margin: 'auto'
       }} 
       onClick={e => e.stopPropagation()} 
     >      
@@ -1190,6 +1310,7 @@ const getRiskStyles = (summary) => {
   </div>
 )}
 <button onClick={() => supabase.auth.signOut()} style={logoutBtn}>Logout System</button>
+</div>
       
       <style>{`
         .hover-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
@@ -1223,7 +1344,9 @@ const getRiskStyles = (summary) => {
   }
 `}</style>
     </div>
+
   );
+
 };
 
 export default function App() {
@@ -1258,12 +1381,13 @@ export default function App() {
 }
 const dashStyle = (theme) => ({ 
   width: '100%',
-  maxWidth: '1440px',        // ↔️ Stretched from 1280px to 1440px
-  margin: '0 auto',
-  backgroundColor: theme?.bg || '#0f172a', 
-  color: theme?.text || '#f8fafc',
   minHeight: '100vh', 
-  padding: '10px 20px',      // 📏 Reduced padding to allow more stretch
+  backgroundColor: theme.bg, 
+  color: theme.text,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center', // ✅ Centers the content on PC
+  padding: '0',
   boxSizing: 'border-box',
   transition: '0.3s ease'
 });
@@ -1284,11 +1408,11 @@ const actionCard = (theme, isDarkMode) => ({
 });
 const graphGrid = { 
   display: 'grid', 
-  // Mobile: 1 column | Tablet (768px): 2 columns
-  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+  // 💻 Laptop: Side-by-side | 📱 Mobile: Stacked
+  gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
   gap: '20px', 
-  marginBottom: '25px',
-  width: '100%'
+  width: '100%',
+  marginBottom: '25px'
 };
 const graphContainer = { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '80px', marginTop: '10px', padding: '0 5px', borderBottom: '2px solid #eee' };
 const barStyle = { width: '12%', borderRadius: '4px 4px 0 0', position: 'relative' };
@@ -1297,19 +1421,21 @@ const medRow = { display: 'flex', justifyContent: 'space-between', alignItems: '
 const recordRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' };
 const viewBtn = { background: '#1a535c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' };
 const riskBadge = (l) => ({ padding: '5px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#ffd43b', color: 'white' });
-const profileSidebar = (theme) => ({ 
-  position: 'fixed', 
-  right: 0, 
-  top: 0, 
-  height: '100%', 
-  width: '100%',              // 📱 Mobile full-width
-  maxWidth: '380px',          // 🖥️ Desktop width
-  backgroundColor: theme.card, 
-  color: theme.text,           
-  padding: '30px', 
-  boxShadow: '-10px 0 30px rgba(0,0,0,0.3)', 
-  zIndex: 3001,
-  overflowY: 'auto'
+const profileSidebar = (theme) => ({
+  backgroundColor: theme.card,
+  width: '100%',           // ✅ Default for mobile
+  maxWidth: '420px',       // ✅ Limit width for Laptop/PC
+  height: '100vh',
+  position: 'fixed',
+  right: 0,                // ✅ Aligns to the right side
+  top: 0,
+  padding: '30px',
+  boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
+  zIndex: 2000,            // ✅ Ensure it stays on top of all cards
+  display: 'flex',
+  flexDirection: 'column',
+  transition: '0.3s ease-in-out',
+  overflowY: 'auto'        // ✅ Allows scrolling if content is long
 });
 const sectionBox = (theme, isDark) => ({ 
   backgroundColor: isDark ? '#1a2234' : '#f8f9fa', // Rule 4: No pure black
@@ -1328,7 +1454,16 @@ const dataLabel = { fontSize: '10px', color: '#888', fontWeight: 'bold' };
 const dataValue = { fontWeight: 'bold', fontSize: '14px', color: 'inherit' };
 const emergencyModeBtn = { width: '100%', background: 'linear-gradient(90deg, #ff4e50, #ff6b6b)', color: 'white', padding: '18px', borderRadius: '15px', fontWeight: 'bold', border: 'none', marginBottom: '15px' };
 const primaryBtn = { background: '#1a535c', color: 'white', padding: '15px', borderRadius: '12px', border: 'none', width: '100%', cursor: 'pointer', fontWeight: 'bold' };
-const editBtn = { background: '#e6f7f9', color: '#1a535c', border: 'none', padding: '5px 12px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' };
+const editBtn = {
+  background: '#0d9488',
+  color: 'white',
+  border: 'none',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  fontWeight: 'bold',
+  transition: '0.2s',
+  height: 'fit-content' // ✅ Prevents stretching
+};
 const modalOverlay = (theme) => ({
   position: 'fixed',
   top: 0,
@@ -1471,4 +1606,10 @@ const downloadSummary = (content) => {
   link.href = url;
   link.download = "Sanjeevani_Health_Summary.txt";
   link.click();
+};
+const contentContainer = {
+  width: '100%',
+  maxWidth: '1200px', // ✅ Prevents the dashboard from getting TOO wide on giant monitors
+  padding: '20px',
+  boxSizing: 'border-box'
 };
