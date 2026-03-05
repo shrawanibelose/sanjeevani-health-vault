@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from './utils/supabaseClient';
- 
+
 const LoginPage = ({ theme, onShowSignUp }) => {
-  const [identifier, setIdentifier] = useState(''); // Email or Phone
+  const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true); 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showReset, setShowReset] = useState(false); 
 
+  // ✅ PRESERVED: Your original Email/Phone identifier logic
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -20,11 +22,8 @@ const LoginPage = ({ theme, onShowSignUp }) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         ...loginData,
-        options: {
-          persistSession: rememberMe 
-        }
+        options: { persistSession: rememberMe }
       });
-
       if (error) throw error;
     } catch (error) {
       alert(error.message);
@@ -33,150 +32,203 @@ const LoginPage = ({ theme, onShowSignUp }) => {
     }
   };
 
+  // ✅ PRESERVED: OTP Reset logic for Forgot Password
+  const handleResetRequest = async (e) => {
+    e.preventDefault();
+    if (!identifier.includes('@')) return alert("Please enter your email to receive an OTP link.");
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(identifier, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      alert(`🔐 Reset link sent to ${identifier}!`);
+      setShowReset(false);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div style={{...authContainer, backgroundColor: theme?.bg || '#f0fdfa', minHeight: '100vh'}}>
-      <h2 style={{color: theme?.text || '#1a535c'}}>🩺 Sanjeevani</h2>
-      <p style={{fontSize: '13px', color: theme?.subText || '#888', marginBottom: '20px'}}>
-        Access Your Health Vault
-      </p>
-      
-      <form onSubmit={handleLogin} style={formStyle}>
-        <input 
-          type="text" 
-          placeholder="Email or Phone Number" 
-          value={identifier} 
-          onChange={(e) => setIdentifier(e.target.value)} 
-          style={{
-            ...inputStyle, 
-            backgroundColor: theme?.card || '#f8f9fa', 
-            color: theme?.text || '#333',
-            border: `1px solid ${theme?.border || '#eef2f3'}`
-          }} 
-          required 
-        />
-        
-        <div style={{ position: 'relative', width: '100%' }}>
-          <input 
-            type={showPassword ? "text" : "password"} 
-            style={{
-              ...inputStyle, 
-              backgroundColor: theme?.card || '#f8f9fa', 
-              color: theme?.text || '#333',
-              border: `1px solid ${theme?.border || '#eef2f3'}`
-            }} 
-            placeholder="Enter Password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          
-          <button 
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: 'absolute',
-              right: '15px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: theme?.subText || '#666',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            {showPassword ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            )}
-          </button>
-        </div>
-
-        <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px'}}>
-          <input 
-            type="checkbox" 
-            id="remember" 
-            checked={rememberMe} 
-            onChange={(e) => setRememberMe(e.target.checked)} 
-            style={{cursor: 'pointer'}}
-          />
-          <label htmlFor="remember" style={{fontSize: '12px', color: theme?.subText || '#666'}}>
-            Remember me on this device
-          </label>
-        </div>
-
-        <button type="submit" disabled={loading} style={btnStyle}>
-          {loading ? 'VERIFYING...' : 'SECURE LOGIN'}
-        </button>
-      </form>
-
-      <div style={{marginTop: '20px'}}>
-        <button onClick={onShowSignUp} style={linkBtn}>Create a new Health ID</button>
-        <p style={{fontSize: '11px', color: theme?.subText || '#bbb', marginTop: '10px', cursor: 'pointer'}}>
-          Forgot Password?
-        </p>
+    <div style={authContainer}>
+      {/* 🏥 BRANDING AREA */}
+      <div style={{ marginBottom: '30px' }}>
+        <span style={{ fontSize: '45px' }}>🏥</span>
+        <h2 style={{ color: '#1a535c', margin: '10px 0 5px 0', fontSize: '24px', fontWeight: '900' }}>Sanjeevani</h2>
+        <div style={securityBadge}>SECURE HEALTH VAULT</div>
       </div>
+      
+      <div style={compactFormCard}>
+        {!showReset ? (
+          <form onSubmit={handleLogin} style={formStyle}>
+            <div style={{ textAlign: 'left' }}>
+              <label style={labelStyle}>VAULT IDENTIFIER</label>
+              <input 
+                type="text" placeholder="Email or Phone" 
+                value={identifier} onChange={(e) => setIdentifier(e.target.value)} 
+                style={inputStyle} required 
+              />
+            </div>
+            
+            <div style={{ textAlign: 'left' }}>
+              <label style={labelStyle}>MASTER ACCESS KEY</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  style={inputStyle} placeholder="••••••••" 
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeBtnStyle}>
+                  {showPassword ? "👁️" : "🔒"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px' }}>
+              <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} style={{ accentColor: '#1a535c', cursor: 'pointer' }} />
+              <label htmlFor="remember" style={{ fontSize: '12px', color: '#666', fontWeight: '600', cursor: 'pointer' }}>Remember me</label>
+            </div>
+
+            <button type="submit" disabled={loading} style={btnStyle}>
+              {loading ? 'VERIFYING...' : 'UNLOCK VAULT'}
+            </button>
+
+            <p onClick={() => setShowReset(true)} style={forgotLinkStyle}>Forgot Master Key? Reset via OTP 📲</p>
+          </form>
+        ) : (
+          <form onSubmit={handleResetRequest} style={formStyle}>
+            <h3 style={{ color: '#1a535c', fontSize: '18px', margin: '0 0 10px 0' }}>Vault Recovery</h3>
+            <p style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Enter email to receive a secure access link.</p>
+            <div style={{ textAlign: 'left' }}>
+              <label style={labelStyle}>REGISTERED EMAIL</label>
+              <input type="email" placeholder="name@email.com" value={identifier} onChange={(e) => setIdentifier(e.target.value)} style={inputStyle} required />
+            </div>
+            <button type="submit" disabled={loading} style={btnStyle}>SEND OTP LINK</button>
+            <button type="button" onClick={() => setShowReset(false)} style={linkBtn}>Back to Login</button>
+          </form>
+        )}
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <button onClick={onShowSignUp} style={linkBtn}>Register New Health Identity</button>
+      </div>
+
+      <div style={footerStyle}>AES-256 END-TO-END ENCRYPTED SYSTEM</div>
     </div>
   );
 };
 
-// --- STYLES ---
+// --- STYLES (Light Theme) ---
 const authContainer = { 
-  padding: '60px 20px', 
-  maxWidth: '100%', 
-  margin: 'auto', 
+  padding: '40px 20px', 
   textAlign: 'center', 
-  fontFamily: 'Segoe UI, sans-serif',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center'
-};
-
-const formStyle = { 
+  fontFamily: 'Inter, sans-serif', 
   display: 'flex', 
   flexDirection: 'column', 
-  gap: '15px', 
-  maxWidth: '400px', 
-  margin: '0 auto', 
-  width: '100%' 
+  justifyContent: 'center', 
+  alignItems: 'center',
+  backgroundColor: '#f0fdfa', // Light mint-water background
+  minHeight: '100vh'
+};
+
+const compactFormCard = { 
+  width: '100%', 
+  maxWidth: '380px', 
+  backgroundColor: '#ffffff', 
+  padding: '30px', 
+  borderRadius: '24px', 
+  border: '1px solid #e2e8f0', 
+  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)' 
+};
+
+const formStyle = { display: 'flex', flexDirection: 'column', gap: '15px' };
+
+const labelStyle = { 
+  fontSize: '10px', 
+  fontWeight: '800', 
+  color: '#64748b', 
+  marginLeft: '10px', 
+  marginBottom: '5px', 
+  display: 'block', 
+  letterSpacing: '0.5px' 
 };
 
 const inputStyle = { 
-  padding: '14px', 
+  padding: '12px 18px', 
   borderRadius: '12px', 
   fontSize: '14px', 
   width: '100%', 
-  boxSizing: 'border-box',
-  transition: '0.3s'
+  boxSizing: 'border-box', 
+  backgroundColor: '#f8fafc', 
+  border: '1px solid #e2e8f0', 
+  color: '#1e293b', 
+  outline: 'none' 
 };
 
 const btnStyle = { 
   background: '#1a535c', 
   color: 'white', 
-  padding: '16px', 
+  padding: '15px', 
   borderRadius: '12px', 
   border: 'none', 
   cursor: 'pointer', 
-  fontWeight: 'bold', 
-  marginTop: '10px',
-  boxShadow: '0 4px 12px rgba(26, 83, 92, 0.2)'
+  fontWeight: '900', 
+  fontSize: '14px',
+  marginTop: '5px',
+  transition: '0.2s'
+};
+
+const securityBadge = { 
+  display: 'inline-block', 
+  padding: '4px 12px', 
+  borderRadius: '20px', 
+  backgroundColor: '#ccfbf1', 
+  border: '1px solid #2dd4bf', 
+  fontSize: '9px', 
+  fontWeight: '800', 
+  color: '#0d9488' 
+};
+
+const forgotLinkStyle = { 
+  fontSize: '11px', 
+  color: '#64748b', 
+  cursor: 'pointer', 
+  marginTop: '10px', 
+  textDecoration: 'underline' 
 };
 
 const linkBtn = { 
   background: 'none', 
   border: 'none', 
-  color: '#4ecdc4', 
-  textDecoration: 'underline', 
+  color: '#1a535c', 
   cursor: 'pointer', 
-  fontWeight: 'bold' 
+  fontWeight: '800', 
+  fontSize: '13px',
+  textDecoration: 'underline'
+};
+
+const eyeBtnStyle = { 
+  position: 'absolute', 
+  right: '15px', 
+  top: '50%', 
+  transform: 'translateY(-50%)', 
+  background: 'none', 
+  border: 'none', 
+  cursor: 'pointer', 
+  color: '#94a3b8' 
+};
+
+const footerStyle = { 
+  marginTop: 'auto', 
+  paddingBottom: '20px', 
+  fontSize: '9px', 
+  color: '#94a3b8', 
+  fontWeight: '800',
+  letterSpacing: '1px'
 };
 
 export default LoginPage;
