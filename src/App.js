@@ -676,13 +676,7 @@ const handleDeleteMedication = (medId) => {
       });
     });
   }
-  const clearAllNotifications = () => {
-  if (window.confirm("Permanently clear all system alerts?")) {
-    setNotifications([]);
-    localStorage.setItem('sanjeevani_notifications', JSON.stringify([]));
-    logAction(session.user.id, 'SYSTEM', 'User cleared notification history');
-  }
-};
+
 
   // 2. Update local state
   const updatedMeds = medications.filter(m => m.id !== medId);
@@ -757,6 +751,13 @@ const getRiskStyles = (summary) => {
     icon: "🟢", 
     label: "NORMAL STATUS" 
   };
+};
+const clearAllNotifications = () => {
+  if (window.confirm("Permanently clear all system alerts?")) {
+    setNotifications([]); // Clears the UI
+    localStorage.setItem('sanjeevani_notifications', JSON.stringify([])); // Clears memory
+    logAction(session.user.id, 'SYSTEM', 'User cleared notification history');
+  }
 };
 return (
   <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.bg }}>
