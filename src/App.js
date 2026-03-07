@@ -427,8 +427,6 @@ const handleProfilePhotoUpload = async (event) => {
     setUploading(false);
   }
 };
-
-  // 🗑️ Fixed: Function now correctly separate from upload logic
  const handleDeleteReport = async (reportId, reportUrl) => {
   if (!window.confirm("Delete this report permanently?")) return;
 
@@ -1180,18 +1178,18 @@ return (
     </div>
   </div>
 )}
-{/* TAB 2 : MEDICAL VAULT */}
+{/* TAB 2 : MEDICAL VAULT (Complete Demo-Ready Version) */}
 {activeTab === 'Medical Vault' && (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '100%' }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '100%', animation: 'slideUpFade 0.4s ease' }}>
     
-    {/* 🔐 SECTION 1: SECURE UPLOAD CARD (Responsive Flex) */}
+    {/* 🔐 SECTION 1: SECURE UPLOAD CARD */}
     <div className="hover-card" style={{ ...actionCard(theme, darkMode), width: '100%', padding: window.innerWidth < 768 ? '20px' : '30px' }}>
       <h3 style={{ ...sectionTitle, textAlign: 'center', color: '#0d9488', marginBottom: '20px', fontSize: '18px' }}>🔐 Secure Medical Upload</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div style={{ display: 'flex', flexDirection: window.innerWidth < 600 ? 'column' : 'row', gap: '15px' }}>
           <input 
             style={{ ...inputStyle, flex: 2, margin: 0 }} 
-            placeholder="Report Name (e.g., CBC Blood Test)" 
+            placeholder="Report Name (e.g., Blood Test)" 
             value={customName} 
             onChange={(e) => setCustomName(e.target.value)} 
           />
@@ -1225,9 +1223,9 @@ return (
       </div>
     </div>
 
-    {/* 📂 SECTION 2: STORED REPORTS (Adaptive List) */}
+    {/* 📂 SECTION 2: STORED REPORTS (Adaptive List with Fixed Actions) */}
     <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', width: '100%', padding: window.innerWidth < 768 ? '15px' : '30px' }}>
-      {/* Top Controls: Stack on mobile */}
+      {/* Top Controls: Search & Filter */}
       <div style={{ 
         display: 'flex', 
         flexDirection: window.innerWidth < 768 ? 'column' : 'row',
@@ -1260,104 +1258,76 @@ return (
         {records
           .filter(r => (filter === 'All' || r.type === filter) && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
           .map((rec) => (
-            <div key={rec.id} className="vault-row" style={{ 
+            <div key={rec.id} style={{ 
               display: 'flex', 
-              // 📱 Mobile: Vertical stack | 💻 PC: Horizontal row
               flexDirection: window.innerWidth < 800 ? 'column' : 'row',
               alignItems: window.innerWidth < 800 ? 'stretch' : 'center', 
               justifyContent: 'space-between', 
               padding: '15px', borderRadius: '12px', border: `1px solid ${theme.border}`,
-              position: 'relative',
+              position: 'relative', // CRITICAL for Menu Positioning
+              background: theme.card,
               gap: '15px'
             }}>
               {/* Report Info */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 2, overflow: 'hidden' }}>
                 <span style={{ fontSize: '28px', flexShrink: 0 }}>{rec.type === 'Radiology' ? '🦴' : '🩸'}</span>
                 <div style={{ overflow: 'hidden' }}>
-                  <b style={{ 
-                    color: theme.text, 
-                    fontSize: '14px', 
-                    display: 'block',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden' 
-                  }}>
-                    {rec.name}
-                  </b>
+                  <b style={{ color: theme.text, fontSize: '14px', display: 'block' }}>{rec.name}</b>
                   <p style={{ margin: 0, fontSize: '11px', color: theme.subText }}>{rec.type} • {rec.date}</p>
                 </div>
               </div>
 
-              {/* Status Badges: Align left on mobile, center on PC */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '8px', 
-                flex: 1, 
-                justifyContent: window.innerWidth < 800 ? 'flex-start' : 'center',
-                flexWrap: 'wrap'
-              }}>
+              {/* Status Badges */}
+              <div style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: window.innerWidth < 800 ? 'flex-start' : 'center' }}>
                 <span style={{...secureBadgeStyle, marginLeft: 0}}>🔐 AES-256</span>
                 <span style={badgeStyle(getReportAnalysis(rec).color)}>RISK: {getReportAnalysis(rec).status}</span>
               </div>
 
-              {/* Actions: Right aligned */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '10px', 
-                flex: 1, 
-                justifyContent: window.innerWidth < 800 ? 'flex-end' : 'flex-end', 
-                position: 'relative' 
-              }}>
+              {/* Actions & Menu */}
+              <div style={{ display: 'flex', gap: '10px', flex: 1, justifyContent: 'flex-end', position: 'relative' }}>
                 <button style={viewBtn} onClick={() => setPreviewUrl(rec.file_url)}>VIEW</button>
                 <button style={{ ...viewBtn, background: '#0d9488' }} onClick={() => { setSelectedAnalysis(rec); setShowAnalysisModal(true); }}>ANALYZE</button>
                 
-                {/* Custom Three-dot Menu for remaining actions */}
+                {/* 🎯 THREE-DOT CONTEXT MENU */}
                 <div style={{ position: 'relative' }}>
                   <button 
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e.stopPropagation(); // 🛡️ Prevents the global click-outside listener from firing
                       setActiveMenu(activeMenu === rec.id ? null : rec.id);
                     }}
-                    style={{ background: 'none', border: 'none', color: theme.subText, cursor: 'pointer', fontSize: '20px', padding: '0 5px' }}
-                  >
-                    ⋮
-                  </button>
+                    style={{ background: 'none', border: 'none', color: theme.subText, cursor: 'pointer', fontSize: '22px', padding: '0 5px' }}
+                  >⋮</button>
 
                   {activeMenu === rec.id && (
                     <div style={{
-                      position: 'absolute', top: '35px', right: '0', width: '180px', 
-                      backgroundColor: theme.card, borderRadius: '12px', zIndex: 100,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: `1px solid ${theme.border}`,
-                      overflow: 'hidden'
+                      position: 'absolute', top: '40px', right: '0', width: '180px', 
+                      backgroundColor: darkMode ? '#1e293b' : '#ffffff', 
+                      borderRadius: '12px', zIndex: 9999,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.3)', border: `1px solid ${theme.border}`,
+                      overflow: 'hidden', display: 'flex', flexDirection: 'column'
                     }}>
-                      <button 
-                        style={menuItemStyle(theme)} 
-                        onClick={() => { 
-                          const link = document.createElement('a');
-                          link.href = rec.file_url;
-                          link.download = rec.name;
-                          link.click();
-                          setActiveMenu(null); 
-                        }}
-                      >
-                        📥 Download
-                      </button>
-                      <button 
-                        style={menuItemStyle(theme)} 
-                        onClick={() => { 
-                          const msg = encodeURIComponent(`🏥 Sanjeevani Report: ${rec.name}\nView: ${rec.file_url}`);
-                          window.open(`https://wa.me/?text=${msg}`, '_blank');
-                          setActiveMenu(null); 
-                        }}
-                      >
-                        📱 WhatsApp Share
-                      </button>
-                      <button 
-                        style={{ ...menuItemStyle(theme), color: '#f43f5e' }} 
-                        onClick={() => { handleDeleteReport(rec.id, rec.file_url); setActiveMenu(null); }}
-                      >
-                        🗑️ Delete Record
-                      </button>
+                      <button style={menuItemStyle} onClick={() => { 
+                        const link = document.createElement('a');
+                        link.href = rec.file_url;
+                        link.download = rec.name;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setActiveMenu(null); 
+                      }}>📥 Download</button>
+
+                      <button style={menuItemStyle} onClick={() => { 
+                        const msg = encodeURIComponent(`🏥 Sanjeevani Report: ${rec.name}\nView: ${rec.file_url}`);
+                        window.open(`https://wa.me/?text=${msg}`, '_blank');
+                        setActiveMenu(null); 
+                      }}>📱 WhatsApp Share</button>
+
+                      <hr style={{ border: 'none', borderTop: `1px solid ${theme.border}`, margin: '0' }} />
+                      
+                      <button style={{ ...menuItemStyle, color: '#f43f5e' }} onClick={() => { 
+                        handleDeleteReport(rec.id, rec.file_url); 
+                        setActiveMenu(null); 
+                      }}>🗑️ Delete Packet</button>
                     </div>
                   )}
                 </div>
@@ -1450,31 +1420,37 @@ return (
         </div>
       </div>
 
-      {/* 📊 SECTION 3: MEDICATION ADHERENCE ANALYSIS */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', borderLeft: '5px solid #2dd4bf' }}>
-        <p style={{ ...dataLabel, color: '#2dd4bf' }}>💊 ADHERENCE ANALYSIS</p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '15px 0' }}>
-          <b style={{ fontSize: '32px', color: theme.text }}>94%</b>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ ...dataLabel, margin: 0 }}>MISSED DOSES</p>
-            <b style={{ color: '#ff4e50' }}>2 (Last 7 Days)</b>
-          </div>
-        </div>
-        <p style={{ fontSize: '13px', color: theme.subText, lineHeight: '1.6' }}>
-          Weekly Summary: High consistency observed in morning doses. Afternoon adherence shows 
-          slight variance. AI suggests setting a 15-minute secondary buffer.
-        </p>
-        <button style={{ 
-          ...primaryBtn, 
-          padding: '10px', 
-          marginTop: '10px', 
-          fontSize: '12px', 
-          background: '#2dd4bf',
-          width: '100%' // ✅ Full width for touch targets on mobile
-        }}>
-          VIEW FULL ADHERENCE LOG
-        </button>
-      </div>
+    {/* 📊 SECTION 3: MEDICATION ADHERENCE ANALYSIS */}
+<div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', borderLeft: '5px solid #2dd4bf' }}>
+  <p style={{ ...dataLabel, color: '#2dd4bf' }}>💊 ADHERENCE ANALYSIS</p>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '15px 0' }}>
+    <b style={{ fontSize: '32px', color: theme.text }}>94%</b>
+    <div style={{ textAlign: 'right' }}>
+      <p style={{ ...dataLabel, margin: 0 }}>MISSED DOSES</p>
+      <b style={{ color: '#ff4e50' }}>2 (Last 7 Days)</b>
+    </div>
+  </div>
+  <p style={{ fontSize: '13px', color: theme.subText, lineHeight: '1.6' }}>
+    Weekly Summary: High consistency observed in morning doses. Afternoon adherence shows 
+    slight variance. AI suggests setting a 15-minute secondary buffer.
+  </p>
+  
+  {/* 🟢 UPDATED BUTTON: This will now actually switch tabs */}
+  <button 
+    onClick={() => setActiveTab('Medications')} 
+    style={{ 
+      ...primaryBtn, 
+      padding: '10px', 
+      marginTop: '10px', 
+      fontSize: '12px', 
+      background: '#2dd4bf',
+      width: '100%',
+      cursor: 'pointer'
+    }}
+  >
+    VIEW FULL ADHERENCE LOG
+  </button>
+</div>
     </div>
   </div>
 )}
@@ -1696,32 +1672,40 @@ return (
     padding: window.innerWidth < 768 ? '10px' : '0' // Extra breathing room for mobile
   }}>
     
-    {/* 🔝 TOP CONTROL HUB: 2x2 on Mobile, 1x4 on PC */}
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: window.innerWidth < 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
-      gap: '12px' 
-    }}>
-      <button onClick={handleSOS} style={emergencyPrimaryBtn('#f43f5e')}>
-        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>🚨</span>
-        <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>SEND SOS</span>
-      </button>
+{/* 🔝 TOP CONTROL HUB: 2x2 on Mobile, 1x4 on PC */}
+<div style={{ 
+  display: 'grid', 
+  gridTemplateColumns: window.innerWidth < 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
+  gap: '12px' 
+}}>
+  {/* 🚨 SOS BUTTON */}
+  <button onClick={handleSOS} style={emergencyPrimaryBtn('#f43f5e')}>
+    <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>🚨</span>
+    <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>SEND SOS</span>
+  </button>
 
-      <button onClick={() => window.location.href=`tel:${profile.doctor_phone}`} style={emergencyPrimaryBtn('#0d9488')}>
-        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>👨‍⚕️</span>
-        <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>CALL DOCTOR</span>
-      </button>
+  {/* 👨‍⚕️ CALL DOCTOR */}
+  <a href={`tel:${profile.doctor_phone}`} style={{ textDecoration: 'none' }}>
+    <button style={{ ...emergencyPrimaryBtn('#0d9488'), width: '100%' }}>
+      <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>👨‍⚕️</span>
+      <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>CALL DOCTOR</span>
+    </button>
+  </a>
 
-      <button onClick={() => window.open('https://www.google.com/maps/search/hospital+near+me')} style={emergencyPrimaryBtn('#64748b')}>
-        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>📍</span>
-        <span style={{ fontSize: '14px' }}>FIND ROUTE</span>
-      </button>
+  {/* 📍 FIND ROUTE */}
+  <button onClick={() => window.open('https://www.google.com/maps/search/hospital+near+me')} style={emergencyPrimaryBtn('#64748b')}>
+    <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>📍</span>
+    <span style={{ fontSize: '14px' }}>FIND ROUTE</span>
+  </button>
 
-      <button onClick={() => window.location.href=`tel:${profile.emergency_phone}`} style={emergencyPrimaryBtn('#1e293b')}>
-        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>📞</span>
-        <span style={{ fontSize: '14px' }}>CALL CONTACT</span>
-      </button>
-    </div>
+  {/* 🚑 CALL AMBULANCE (Rebranded & Fixed) */}
+  <a href="tel:108" style={{ textDecoration: 'none' }}>
+    <button style={{ ...emergencyPrimaryBtn('#1e293b'), width: '100%' }}>
+      <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>🚑</span>
+      <span style={{ fontSize: '14px' }}>AMBULANCE</span>
+    </button>
+  </a>
+</div>
 
     {/* 📇 SECTION 2: DUAL-PANEL DIGITAL EMERGENCY PASS */}
     <div style={{ 
