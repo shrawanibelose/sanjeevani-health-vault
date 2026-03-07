@@ -147,7 +147,6 @@ const Dashboard = ({ session, darkMode, setDarkMode }) => {
   const [lastUpdated, setLastUpdated] = useState("15 Feb 2026");
   const [selectedAnalysis, setSelectedAnalysis] = useState(null); 
   const [showAnalysisModal, setShowAnalysisModal] = useState(false); // Make sure this exists!
-  const [useAIAnalysis, setUseAIAnalysis] = useState(false); // 🛡️ Teacher's Hybrid Step
   const [records, setRecords] = useState([]);
   const [medications, setMedications] = useState([]);
   const [customName, setCustomName] = useState(''); // ✅ Fixes 'customName' error
@@ -159,29 +158,21 @@ const Dashboard = ({ session, darkMode, setDarkMode }) => {
   desc: '' 
 });
   const [showAddMed, setShowAddMed] = useState(false);
-  const [medSearchQuery, setMedSearchQuery] = useState('');
   const [category, setCategory] = useState('Pathology');
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMenu, setActiveMenu] = useState(null); // Fixes the ReferenceError
   const [previewUrl, setPreviewUrl] = useState(null);
   const [newPassword, setNewPassword] = useState('');
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
   // 🛡️ SECURITY LAYER: Track consent and AI state
   const [hasConsented, setHasConsented] = useState(false); 
   const [aiInsight, setAiInsight] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
   const [shortSummary, setShortSummary] = useState("");
-  const [detailedReport, setDetailedReport] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
-const [notifications, setNotifications] = useState(() => {
+  const [notifications, setNotifications] = useState(() => {
   const saved = localStorage.getItem('sanjeevani_notifications');
-  // Load saved alerts if they exist; otherwise, use the 3 defaults
-  return saved ? JSON.parse(saved) : [
-    { id: 1, type: 'ALERT', text: 'Missed morning dose: Insulin', time: '2h ago', read: false },
-    { id: 2, type: 'INSIGHT', text: 'New AI analysis available for CBC Report', time: '5h ago', read: false },
-    { id: 3, type: 'SYSTEM', text: 'Vault backup completed successfully', time: 'Yesterday', read: true }
-  ];
+  return saved ? JSON.parse(saved) : []; 
 });
 
 // ✅ Sync with LocalStorage whenever the list changes
@@ -218,14 +209,6 @@ useEffect(() => {
   setHasConsented(false); 
   setAiInsight("");
 }, [selectedAnalysis]);
-
-  useEffect(() => {
-    if (session) {
-      fetchRecords(); // This loads your data when the app starts
-      logAction(session.user.id, 'LOGIN', 'User accessed the health dashboard');
-    }
-  }, [session]);// ✅ Logic to close the notification menu when clicking anywhere else
-
   const fetchRecords = async () => {
     const { data, error } = await supabase
       .from('medical_records')
@@ -1054,31 +1037,35 @@ return (
       <div style={{ padding: '40px 20px', width: '100%', maxWidth: '1200px', margin: '0 auto', boxSizing: 'border-box' }}>
 {/* TAB 1: DASHBOARD */}
 {activeTab === 'Dashboard' && (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', animation: 'slideUpFade 0.4s ease' }}>
+  <div style={{ 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '25px', 
+    animation: 'slideUpFade 0.4s ease',
+    padding: window.innerWidth < 768 ? '5px' : '0' // ✅ Extra breathing room for mobile
+  }}>
     
-    {/* 🟢 DYNAMIC WELLNESS RIBBON */}
+    {/* 🟢 DYNAMIC WELLNESS RIBBON: Stacked on Mobile */}
     {(() => {
-      // Safely extract label and color from your healthStatus object
       const statusLabel = healthStatus?.label || "Stable";
       const statusColor = healthStatus?.color || "#2dd4bf";
-      
-      // Determine risk level for localized styling
       const isHighRisk = typeof healthStatus?.label === 'string' && healthStatus.label.toLowerCase().includes('high');
       const isStable = String(statusLabel).toLowerCase().includes('stable');
-      
-      // Background and accent colors based on status
       const bgColor = isHighRisk ? 'rgba(244, 63, 94, 0.08)' : (isStable ? 'rgba(45, 212, 191, 0.08)' : 'rgba(251, 191, 36, 0.08)');
 
       return (
         <div style={{ 
           background: darkMode ? bgColor : (isHighRisk ? '#fff1f2' : (isStable ? '#f0fdfa' : '#fffbeb')),
-          padding: '18px 25px', // ✅ Thinner padding for a ribbon look
+          padding: window.innerWidth < 768 ? '15px' : '18px 25px', 
           borderRadius: '20px',
           border: `1px solid ${statusColor}`,
           display: 'flex',
-          alignItems: 'center',
+          // 📱 Switch to vertical column on small screens
+          flexDirection: window.innerWidth < 600 ? 'column' : 'row',
+          alignItems: window.innerWidth < 600 ? 'flex-start' : 'center',
           justifyContent: 'space-between',
           width: '100%',
+          gap: '15px',
           transition: 'all 0.3s ease'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -1086,22 +1073,23 @@ return (
               width: '40px', height: '40px', borderRadius: '50%', 
               border: `2.5px solid ${statusColor}`, 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: darkMode ? '#0f172a' : '#fff'
+              background: darkMode ? '#0f172a' : '#fff',
+              flexShrink: 0
             }}>
               <span style={{ color: statusColor, fontSize: '15px', fontWeight: '900' }}>82</span>
             </div>
             <div>
-              <h2 style={{ color: theme.text, margin: 0, fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
+              <h2 style={{ color: theme.text, margin: 0, fontSize: window.innerWidth < 768 ? '15px' : '18px', fontWeight: '800' }}>
                 STATUS: <span style={{ color: statusColor }}>{statusLabel.toUpperCase()}</span>
               </h2>
-              <p style={{ color: theme.subText, margin: 0, fontSize: '12px' }}>
-                {isHighRisk ? 'Immediate attention required: Abnormal markers detected.' : 'Biochemical markers are within optimal range.'}
+              <p style={{ color: theme.subText, margin: 0, fontSize: '11px', lineHeight: '1.3' }}>
+                {isHighRisk ? 'Immediate attention required.' : 'Optimal clinical range detected.'}
               </p>
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ textAlign: window.innerWidth < 600 ? 'left' : 'right', width: window.innerWidth < 600 ? '100%' : 'auto' }}>
             <span style={{ 
-              fontSize: '10px', fontWeight: '900', color: statusColor, 
+              fontSize: '9px', fontWeight: '900', color: statusColor, 
               background: bgColor, padding: '5px 12px', borderRadius: '20px', border: `1px solid ${statusColor}` 
             }}>
               {isHighRisk ? '⚠️ ACTION REQUIRED' : '✅ SYSTEM OPTIMIZED'}
@@ -1111,77 +1099,82 @@ return (
       );
     })()}
 
-    {/* 🟢 HEALTH METRICS GRID */}
+    {/* 🟢 HEALTH METRICS GRID: Responsive Columns */}
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
-      gap: '25px',
+      // 📱 1 Column on Mobile | 💻 2 Columns on PC
+      gridTemplateColumns: window.innerWidth < 1000 ? '1fr' : 'repeat(2, 1fr)', 
+      gap: '20px',
       width: '100%'
     }}>
       {/* GLUCOSE TREND */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: '25px' }}>
+      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: window.innerWidth < 768 ? '20px' : '25px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <p style={dataLabel}>GLUCOSE TREND ↗️</p>
-          <span style={{ fontSize: '10px', color: '#0d9488', fontWeight: 'bold' }}>Normal Range</span>
+          <span style={{ fontSize: '10px', color: '#0d9488', fontWeight: 'bold' }}>Optimal</span>
         </div>
-        <div style={{ ...graphContainer, height: '100px' }}>
-          {glucoseData.map((val, i) => (
-            <div key={i} style={{ ...barStyle, height: `${(val/200)*100}%`, backgroundColor: '#4ecdc4', width: '14px', borderRadius: '4px 4px 0 0' }} />
+        <div style={{ ...graphContainer, height: '80px', gap: '8px' }}>
+          {glucoseData.slice(-7).map((val, i) => (
+            <div key={i} style={{ ...barStyle, height: `${(val/200)*100}%`, backgroundColor: '#4ecdc4', width: window.innerWidth < 768 ? '10%' : '14px' }} />
           ))}
         </div>
-        <p style={{ fontSize: '11px', color: theme.subText, marginTop: '10px' }}>AI Insight: Stability detected after dietary adjustments.</p>
+        <p style={{ fontSize: '10px', color: theme.subText, marginTop: '10px' }}>AI: Stability detected in last 7 cycles.</p>
       </div>
 
       {/* BLOOD PRESSURE */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: '25px' }}>
+      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: window.innerWidth < 768 ? '20px' : '25px' }}>
         <p style={{ ...dataLabel, marginBottom: '15px' }}>BLOOD PRESSURE ↔️</p>
-        <div style={{ ...graphContainer, height: '100px' }}>
-          {bpData.map((val, i) => (
-            <div key={i} style={{ ...barStyle, height: `${(val/180)*100}%`, backgroundColor: '#1a535c', width: '14px', borderRadius: '4px 4px 0 0' }} />
+        <div style={{ ...graphContainer, height: '80px', gap: '8px' }}>
+          {bpData.slice(-7).map((val, i) => (
+            <div key={i} style={{ ...barStyle, height: `${(val/180)*100}%`, backgroundColor: '#1a535c', width: window.innerWidth < 768 ? '10%' : '14px' }} />
           ))}
         </div>
-        <p style={{ fontSize: '11px', color: theme.subText, marginTop: '10px' }}>Systolic average: 122 mmHg. Cardiovascular load is stable.</p>
+        <p style={{ fontSize: '10px', color: theme.subText, marginTop: '10px' }}>Systolic avg: 122 mmHg (Stable).</p>
       </div>
 
       {/* MEDICATION ADHERENCE */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: '25px' }}>
+      <div className="hover-card" style={{ ...actionCard(theme, darkMode), padding: window.innerWidth < 768 ? '20px' : '25px' }}>
         <p style={dataLabel}>MEDICATION ADHERENCE</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '15px' }}>
-          <b style={{ fontSize: '28px', color: theme.text }}>94%</b>
-          <div style={{ flex: 1, height: '10px', background: darkMode ? '#1e293b' : '#eee', borderRadius: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+          <b style={{ fontSize: '24px', color: theme.text }}>94%</b>
+          <div style={{ flex: 1, height: '8px', background: darkMode ? '#1e293b' : '#eee', borderRadius: '5px' }}>
             <div style={{ width: '94%', height: '100%', background: 'linear-gradient(90deg, #0d9488, #2dd4bf)', borderRadius: '5px' }} />
           </div>
         </div>
       </div>
 
-      {/* UPCOMING SCHEDULE (Replaces Heart Rate) */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), borderLeft: '8px solid #0d9488', padding: '25px' }}>
+      {/* UPCOMING SCHEDULE */}
+      <div className="hover-card" style={{ ...actionCard(theme, darkMode), borderLeft: '8px solid #0d9488', padding: window.innerWidth < 768 ? '20px' : '25px' }}>
         <p style={dataLabel}>UPCOMING SCHEDULE</p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-          <div>
-            <b style={{ fontSize: '18px', color: theme.text }}>
+          <div style={{ overflow: 'hidden' }}>
+            <b style={{ fontSize: '16px', color: theme.text, display: 'block', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {medications.length > 0 ? medications[0].name : "No Pending Doses"}
             </b>
-            <p style={{ margin: 0, fontSize: '12px', color: theme.subText }}>
+            <p style={{ margin: 0, fontSize: '11px', color: theme.subText }}>
               Next: {medications.length > 0 ? medications[0].times[0] : "--:--"}
             </p>
           </div>
-          <span style={{ fontSize: '32px' }}>⏳</span>
+          <span style={{ fontSize: '28px', flexShrink: 0 }}>⏳</span>
         </div>
       </div>
     </div>
 
-    {/* 🏥 SECTION 3: CLINICAL HEALTH SUMMARY (Replaces System Logs) */}
+    {/* 🏥 SECTION 3: CLINICAL HEALTH SUMMARY: Stacks on Mobile */}
     <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', background: 'linear-gradient(to right, rgba(13, 148, 136, 0.05), transparent)' }}>
-      <h3 style={{ color: theme.text, margin: '0 0 15px 0', fontSize: '16px' }}>Clinical Health Summary</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <h3 style={{ color: theme.text, margin: '0 0 15px 0', fontSize: '15px' }}>Clinical Health Summary</h3>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: window.innerWidth < 600 ? '1fr' : '1fr 1fr', 
+        gap: '20px' 
+      }}>
          <div style={{ borderLeft: `3px solid #2dd4bf`, paddingLeft: '15px' }}>
-            <p style={{ ...dataLabel, fontSize: '10px', marginBottom: '5px' }}>CHRONIC STATUS</p>
-            <b style={{ fontSize: '13px', color: theme.text }}>{decryptData(profile.chronic_diseases) || "Stable"}</b>
+            <p style={{ ...dataLabel, fontSize: '9px', marginBottom: '5px' }}>CHRONIC STATUS</p>
+            <b style={{ fontSize: '12px', color: theme.text }}>{decryptData(profile.chronic_diseases) || "Stable"}</b>
          </div>
          <div style={{ borderLeft: `3px solid #0d9488`, paddingLeft: '15px' }}>
-            <p style={{ ...dataLabel, fontSize: '10px', marginBottom: '5px' }}>ANALYSIS CONFIDENCE</p>
-            <b style={{ fontSize: '13px', color: theme.text }}>94% Clinical AI Confidence</b>
+            <p style={{ ...dataLabel, fontSize: '9px', marginBottom: '5px' }}>AI CONFIDENCE</p>
+            <b style={{ fontSize: '12px', color: theme.text }}>94% Clinical Confidence</b>
          </div>
       </div>
     </div>
@@ -1189,13 +1182,13 @@ return (
 )}
 {/* TAB 2 : MEDICAL VAULT */}
 {activeTab === 'Medical Vault' && (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '35px', width: '100%' }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '100%' }}>
     
-    {/* 🔐 SECTION 1: SECURE UPLOAD CARD (Width Aligned) */}
-    <div className="hover-card" style={{ ...actionCard(theme, darkMode), width: '100%' }}>
-      <h3 style={{ ...sectionTitle, textAlign: 'center', color: '#0d9488', marginBottom: '20px' }}>🔐 Secure Medical Upload</h3>
+    {/* 🔐 SECTION 1: SECURE UPLOAD CARD (Responsive Flex) */}
+    <div className="hover-card" style={{ ...actionCard(theme, darkMode), width: '100%', padding: window.innerWidth < 768 ? '20px' : '30px' }}>
+      <h3 style={{ ...sectionTitle, textAlign: 'center', color: '#0d9488', marginBottom: '20px', fontSize: '18px' }}>🔐 Secure Medical Upload</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', flexDirection: window.innerWidth < 600 ? 'column' : 'row', gap: '15px' }}>
           <input 
             style={{ ...inputStyle, flex: 2, margin: 0 }} 
             placeholder="Report Name (e.g., CBC Blood Test)" 
@@ -1213,7 +1206,7 @@ return (
           </select>
         </div>
         
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: window.innerWidth < 600 ? 'column' : 'row', gap: '15px', alignItems: 'center' }}>
           <input type="file" id="vault-upload" hidden onChange={handleFileUpload} />
           <button 
             onClick={() => document.getElementById('vault-upload').click()}
@@ -1232,104 +1225,142 @@ return (
       </div>
     </div>
 
-    {/* 📂 SECTION 2: STORED REPORTS (Full-Width Enterprise List) */}
-    <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', width: '100%' }}>
-      {/* Top Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', paddingBottom: '15px', borderBottom: `1px solid ${theme.border}` }}>
+    {/* 📂 SECTION 2: STORED REPORTS (Adaptive List) */}
+    <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', width: '100%', padding: window.innerWidth < 768 ? '15px' : '30px' }}>
+      {/* Top Controls: Stack on mobile */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+        justifyContent: 'space-between', 
+        alignItems: window.innerWidth < 768 ? 'flex-start' : 'center', 
+        marginBottom: '25px', 
+        paddingBottom: '15px', 
+        borderBottom: `1px solid ${theme.border}`,
+        gap: '15px'
+      }}>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <h3 style={{ color: theme.text, margin: 0 }}>Vault Storage</h3>
           <span style={badgeStyle('#64748b')}>{records.length} Reports Stored</span>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', width: window.innerWidth < 768 ? '100%' : 'auto' }}>
           <input 
-            style={{ ...inputStyle, width: '200px', padding: '8px', margin: 0 }} 
-            placeholder="Search vault..." 
+            style={{ ...inputStyle, width: window.innerWidth < 768 ? '60%' : '200px', padding: '8px', margin: 0 }} 
+            placeholder="Search..." 
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select style={{ ...inputStyle, width: '120px', padding: '8px', margin: 0 }} onChange={(e) => setFilter(e.target.value)}>
+          <select style={{ ...inputStyle, width: window.innerWidth < 768 ? '40%' : '120px', padding: '8px', margin: 0 }} onChange={(e) => setFilter(e.target.value)}>
             <option value="All">All Types</option>
             {['Pathology', 'Radiology', 'Cardiology', 'Prescription'].map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Table-style Report List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Adaptive Report List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {records
           .filter(r => (filter === 'All' || r.type === filter) && r.name.toLowerCase().includes(searchQuery.toLowerCase()))
           .map((rec) => (
             <div key={rec.id} className="vault-row" style={{ 
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+              display: 'flex', 
+              // 📱 Mobile: Vertical stack | 💻 PC: Horizontal row
+              flexDirection: window.innerWidth < 800 ? 'column' : 'row',
+              alignItems: window.innerWidth < 800 ? 'stretch' : 'center', 
+              justifyContent: 'space-between', 
               padding: '15px', borderRadius: '12px', border: `1px solid ${theme.border}`,
-              position: 'relative'
+              position: 'relative',
+              gap: '15px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: 2 }}>
-                <span style={{ fontSize: '24px' }}>{rec.type === 'Radiology' ? '🦴' : '🩸'}</span>
-                <div>
-                  <b style={{ color: theme.text, fontSize: '14px' }}>{rec.name}</b>
+              {/* Report Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 2, overflow: 'hidden' }}>
+                <span style={{ fontSize: '28px', flexShrink: 0 }}>{rec.type === 'Radiology' ? '🦴' : '🩸'}</span>
+                <div style={{ overflow: 'hidden' }}>
+                  <b style={{ 
+                    color: theme.text, 
+                    fontSize: '14px', 
+                    display: 'block',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden' 
+                  }}>
+                    {rec.name}
+                  </b>
                   <p style={{ margin: 0, fontSize: '11px', color: theme.subText }}>{rec.type} • {rec.date}</p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', flex: 1, justifyContent: 'center' }}>
-                <span style={secureBadgeStyle}>🔐 AES-256</span>
+              {/* Status Badges: Align left on mobile, center on PC */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px', 
+                flex: 1, 
+                justifyContent: window.innerWidth < 800 ? 'flex-start' : 'center',
+                flexWrap: 'wrap'
+              }}>
+                <span style={{...secureBadgeStyle, marginLeft: 0}}>🔐 AES-256</span>
                 <span style={badgeStyle(getReportAnalysis(rec).color)}>RISK: {getReportAnalysis(rec).status}</span>
               </div>
 
-              {/* 🛠️ ACTION BUTTONS & THREE-DOT MENU */}
-              <div style={{ display: 'flex', gap: '10px', flex: 1, justifyContent: 'flex-end', position: 'relative' }}>
+              {/* Actions: Right aligned */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '10px', 
+                flex: 1, 
+                justifyContent: window.innerWidth < 800 ? 'flex-end' : 'flex-end', 
+                position: 'relative' 
+              }}>
                 <button style={viewBtn} onClick={() => setPreviewUrl(rec.file_url)}>VIEW</button>
                 <button style={{ ...viewBtn, background: '#0d9488' }} onClick={() => { setSelectedAnalysis(rec); setShowAnalysisModal(true); }}>ANALYZE</button>
                 
-                {/* Trigger */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveMenu(activeMenu === rec.id ? null : rec.id);
-                  }}
-                  style={{ background: 'none', border: 'none', color: theme.subText, cursor: 'pointer', fontSize: '20px' }}
-                >
-                  ⋮
-                </button>
+                {/* Custom Three-dot Menu for remaining actions */}
+                <div style={{ position: 'relative' }}>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenu(activeMenu === rec.id ? null : rec.id);
+                    }}
+                    style={{ background: 'none', border: 'none', color: theme.subText, cursor: 'pointer', fontSize: '20px', padding: '0 5px' }}
+                  >
+                    ⋮
+                  </button>
 
-                {/* Dropdown Menu */}
-                {activeMenu === rec.id && (
-                  <div style={{
-                    position: 'absolute', top: '40px', right: '0', width: '180px', 
-                    backgroundColor: theme.card, borderRadius: '12px', zIndex: 100,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: `1px solid ${theme.border}`,
-                    overflow: 'hidden'
-                  }}>
-                    <button 
-                      style={menuItemStyle(theme)} 
-                      onClick={() => { 
-                        const link = document.createElement('a');
-                        link.href = rec.file_url;
-                        link.download = rec.name;
-                        link.click();
-                        setActiveMenu(null); 
-                      }}
-                    >
-                      📥 Download
-                    </button>
-                    <button 
-                      style={menuItemStyle(theme)} 
-                      onClick={() => { 
-                        const msg = encodeURIComponent(`🏥 Sanjeevani Report: ${rec.name}\nView here: ${rec.file_url}`);
-                        window.open(`https://wa.me/?text=${msg}`, '_blank');
-                        setActiveMenu(null); 
-                      }}
-                    >
-                      📱 Share to WhatsApp
-                    </button>
-                    <button 
-                      style={{ ...menuItemStyle(theme), color: '#f43f5e' }} 
-                      onClick={() => { handleDeleteReport(rec.id, rec.file_url); setActiveMenu(null); }}
-                    >
-                      🗑️ Delete Record
-                    </button>
-                  </div>
-                )}
+                  {activeMenu === rec.id && (
+                    <div style={{
+                      position: 'absolute', top: '35px', right: '0', width: '180px', 
+                      backgroundColor: theme.card, borderRadius: '12px', zIndex: 100,
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: `1px solid ${theme.border}`,
+                      overflow: 'hidden'
+                    }}>
+                      <button 
+                        style={menuItemStyle(theme)} 
+                        onClick={() => { 
+                          const link = document.createElement('a');
+                          link.href = rec.file_url;
+                          link.download = rec.name;
+                          link.click();
+                          setActiveMenu(null); 
+                        }}
+                      >
+                        📥 Download
+                      </button>
+                      <button 
+                        style={menuItemStyle(theme)} 
+                        onClick={() => { 
+                          const msg = encodeURIComponent(`🏥 Sanjeevani Report: ${rec.name}\nView: ${rec.file_url}`);
+                          window.open(`https://wa.me/?text=${msg}`, '_blank');
+                          setActiveMenu(null); 
+                        }}
+                      >
+                        📱 WhatsApp Share
+                      </button>
+                      <button 
+                        style={{ ...menuItemStyle(theme), color: '#f43f5e' }} 
+                        onClick={() => { handleDeleteReport(rec.id, rec.file_url); setActiveMenu(null); }}
+                      >
+                        🗑️ Delete Record
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -1337,25 +1368,42 @@ return (
     </div>
   </div>
 )}
- {/* TAB 3:AI TRENDS */}
+{/* TAB 3:AI TRENDS */}
 {activeTab === 'AI Trends' && (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', width: '100%' }}>
     
-    {/* 📈 SECTION 1: RISK OVER TIME (Full-Width Analysis) */}
-    <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', padding: '40px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+    {/* 📈 SECTION 1: RISK OVER TIME (Adaptive Padding) */}
+    <div className="hover-card" style={{ 
+      ...actionCard(theme, darkMode), 
+      textAlign: 'left', 
+      padding: window.innerWidth < 768 ? '20px' : '40px' // ✅ Reduced padding for mobile
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: window.innerWidth < 768 ? 'column' : 'row', // ✅ Stack header on mobile
+        justifyContent: 'space-between', 
+        alignItems: window.innerWidth < 768 ? 'flex-start' : 'center', 
+        marginBottom: '30px',
+        gap: '15px'
+      }}>
         <div>
-          <h3 style={{ margin: 0, color: theme.text, fontSize: '20px' }}>Health Risk Evolution</h3>
+          <h3 style={{ margin: 0, color: theme.text, fontSize: window.innerWidth < 768 ? '18px' : '20px' }}>Health Risk Evolution</h3>
           <p style={dataLabel}>LONG-TERM BIOMARKER AGGREGATION</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <span style={badgeStyle('#0d9488')}>AI PREDICTIVE ACTIVE</span>
           <span style={secureBadgeStyle}>MODEL: GEMINI-PRO-CLINICAL</span>
         </div>
       </div>
 
-      {/* Full-width Trend Chart */}
-      <div style={{ ...graphContainer, height: '250px', alignItems: 'flex-end', gap: '20px', paddingBottom: '30px' }}>
+      {/* Full-width Trend Chart (Responsive Height & Gap) */}
+      <div style={{ 
+        ...graphContainer, 
+        height: window.innerWidth < 768 ? '180px' : '250px', // ✅ Shorter on mobile
+        alignItems: 'flex-end', 
+        gap: window.innerWidth < 768 ? '10px' : '20px', 
+        paddingBottom: '30px' 
+      }}>
         {[65, 68, 72, 70, 78, 82].map((val, i) => (
           <div key={i} style={{ 
             flex: 1, 
@@ -1365,17 +1413,29 @@ return (
             position: 'relative',
             opacity: 0.5 + (i * 0.1) 
           }}>
-            <span style={{ ...toolTip, top: '-25px', fontSize: '11px' }}>{val}%</span>
-            <p style={{ position: 'absolute', bottom: '-30px', width: '100%', textAlign: 'center', fontSize: '10px', color: theme.subText }}>
-              Month {i + 1}
+            <span style={{ ...toolTip, top: '-25px', fontSize: '9px' }}>{val}%</span>
+            <p style={{ 
+              position: 'absolute', 
+              bottom: '-30px', 
+              width: '100%', 
+              textAlign: 'center', 
+              fontSize: '9px', // ✅ Smaller font for month labels
+              color: theme.subText 
+            }}>
+              {window.innerWidth < 768 ? (i + 1) : `Month ${i + 1}`}
             </p>
           </div>
         ))}
       </div>
     </div>
 
-    {/* 🧠 SECTION 2: AI INSIGHT SUMMARY (The Intelligence Panel) */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '25px' }}>
+    {/* 🧠 SECTION 2: AI INSIGHT SUMMARY (Responsive Grid) */}
+    <div style={{ 
+      display: 'grid', 
+      // ✅ Switches to 1 column at 850px to prevent squashing
+      gridTemplateColumns: window.innerWidth < 850 ? '1fr' : 'repeat(2, 1fr)', 
+      gap: '25px' 
+    }}>
       <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', borderLeft: '5px solid #0d9488' }}>
         <p style={{ ...dataLabel, color: '#0d9488' }}>🧠 PATTERN DETECTION</p>
         <h4 style={{ color: theme.text, margin: '12px 0' }}>Metabolic Stability Identified</h4>
@@ -1404,7 +1464,14 @@ return (
           Weekly Summary: High consistency observed in morning doses. Afternoon adherence shows 
           slight variance. AI suggests setting a 15-minute secondary buffer.
         </p>
-        <button style={{ ...primaryBtn, padding: '10px', marginTop: '10px', fontSize: '12px', background: '#2dd4bf' }}>
+        <button style={{ 
+          ...primaryBtn, 
+          padding: '10px', 
+          marginTop: '10px', 
+          fontSize: '12px', 
+          background: '#2dd4bf',
+          width: '100%' // ✅ Full width for touch targets on mobile
+        }}>
           VIEW FULL ADHERENCE LOG
         </button>
       </div>
@@ -1415,14 +1482,18 @@ return (
 {activeTab === 'Medications' && (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '35px', width: '100%' }}>
     
-    {/* 🔝 SECTION 1: SUMMARIES (High Priority for Seniors) */}
-    <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 1100 ? '1fr' : '1fr 1.8fr', gap: '30px' }}>
+    {/* 🔝 SECTION 1: SUMMARIES (Responsive Grid: 1 column on Mobile, 2 on PC) */}
+    <div style={{ 
+      display: 'grid', 
+      gridTemplateColumns: window.innerWidth < 1100 ? '1fr' : '1fr 1.8fr', 
+      gap: '30px' 
+    }}>
       
       {/* 🟡 SECTION: TODAY’S SCHEDULE */}
       <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left' }}>
         <h3 style={sectionTitle}>🟡 Today's Schedule</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-          {medications.map((med, i) => (
+          {medications.length > 0 ? medications.map((med, i) => (
             <div key={i} style={{ 
               ...medRow, 
               backgroundColor: theme.bg, 
@@ -1430,18 +1501,22 @@ return (
               borderLeft: `5px solid #0d9488`,
               borderRadius: '12px',
               display: 'flex',
+              // 📱 Mobile Fix: Stack vertically if space is tight
+              flexDirection: window.innerWidth < 450 ? 'column' : 'row',
+              gap: '15px',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: window.innerWidth < 450 ? 'flex-start' : 'center'
             }}>
               <div>
-                <b style={{ fontSize: '16px', color: theme.text }}>{med.times[0]}</b>
+                <b style={{ fontSize: '16px', color: theme.text }}>{med.times[0] || 'Anytime'}</b>
                 <p style={{ margin: 0, fontSize: '13px', color: theme.subText }}>{med.name}</p>
               </div>
 
               <button 
                 style={{ 
                   background: '#0d9488', color: 'white', border: 'none', 
-                  padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontWeight: '900' 
+                  padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontWeight: '900',
+                  width: window.innerWidth < 450 ? '100%' : 'auto'
                 }}
                 onClick={(e) => {
                   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1459,63 +1534,73 @@ return (
                 MARK AS TAKEN
               </button>
             </div>
-          ))}
+          )) : (
+            <p style={{ color: theme.subText, fontSize: '13px', textAlign: 'center' }}>No doses scheduled for today.</p>
+          )}
         </div>
       </div>
 
-      {/* 🔵 FINAL UNIFIED ACTIVE MEDICATION VAULT */}
-      <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', overflowX: 'auto', width: '100%' }}>
+      {/* 🔵 SECTION: ACTIVE MEDICATION VAULT (Added Horizontal Scroll for Mobile) */}
+      <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', width: '100%', overflow: 'hidden' }}>
         <h3 style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ color: '#3b82f6' }}>🔵</span> Active Medication Vault
         </h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${theme.border}`, textAlign: 'left' }}>
-              <th style={{ ...dataLabel, padding: '10px' }}>NAME</th>
-              <th style={dataLabel}>SCHEDULE</th>
-              <th style={dataLabel}>ALARMS</th>
-              <th style={dataLabel}>LAST DOSE</th>
-              <th style={dataLabel}>STATUS</th>
-              <th style={{ ...dataLabel, textAlign: 'right' }}>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {medications.map((med, i) => (
-              <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
-                <td style={{ padding: '15px 10px', fontSize: '13px', color: theme.text }}><b>{med.name}</b></td>
-                <td style={{ fontSize: '12px', color: theme.subText }}>
-                  {med.days.length === 7 ? 'Daily' : med.days.join(', ')}
-                </td>
-                <td style={{ fontSize: '13px', color: theme.text }}>
-                  {med.times.map((t, idx) => (
-                    <span key={idx} style={{ background: '#0d948820', color: '#0d9488', padding: '2px 6px', borderRadius: '4px', marginRight: '5px', fontSize: '11px', fontWeight: 'bold' }}>
-                      {t}
-                    </span>
-                  ))}
-                </td>
-                <td style={{ fontSize: '12px', color: med.lastTaken ? '#2dd4bf' : theme.subText }}>
-                  {med.lastTaken || 'Pending Today'}
-                </td>
-                <td><span style={badgeStyle('#0d9488')}>ACTIVE</span></td>
-                <td style={{ textAlign: 'right' }}>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '10px' }}>✏️</button>
-                  <button 
-                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4e50' }}
-                     onClick={() => handleDeleteMedication(med.id)}>
-                       🗑️
-                 </button>
-                </td>
+        
+        {/* 📱 Mobile Fix: Wrap table in a scrollable div */}
+        <div style={{ width: '100%', overflowX: 'auto', marginTop: '20px', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${theme.border}`, textAlign: 'left' }}>
+                <th style={{ ...dataLabel, padding: '10px' }}>NAME</th>
+                <th style={dataLabel}>SCHEDULE</th>
+                <th style={dataLabel}>ALARMS</th>
+                <th style={dataLabel}>LAST DOSE</th>
+                <th style={dataLabel}>STATUS</th>
+                <th style={{ ...dataLabel, textAlign: 'right' }}>ACTIONS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {medications.map((med, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: '15px 10px', fontSize: '13px', color: theme.text }}><b>{med.name}</b></td>
+                  <td style={{ fontSize: '12px', color: theme.subText }}>
+                    {med.days.length === 7 ? 'Daily' : med.days.join(', ')}
+                  </td>
+                  <td style={{ fontSize: '13px', color: theme.text }}>
+                    {med.times.map((t, idx) => (
+                      <span key={idx} style={{ background: '#0d948820', color: '#0d9488', padding: '2px 6px', borderRadius: '4px', marginRight: '5px', fontSize: '11px', fontWeight: 'bold' }}>
+                        {t}
+                      </span>
+                    ))}
+                  </td>
+                  <td style={{ fontSize: '12px', color: med.lastTaken ? '#2dd4bf' : theme.subText }}>
+                    {med.lastTaken || 'Pending Today'}
+                  </td>
+                  <td><span style={badgeStyle('#0d9488')}>ACTIVE</span></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '10px' }}>✏️</button>
+                    <button 
+                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ff4e50' }}
+                       onClick={() => handleDeleteMedication(med.id)}>
+                         🗑️
+                   </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    {/* 🟢 SECTION 2: ADD NEW MEDICATION */}
+    {/* 🟢 SECTION 2: ADD NEW MEDICATION (Responsive Grid: 1 column on Mobile) */}
     <div className="hover-card" style={{ ...actionCard(theme, darkMode), textAlign: 'left', borderTop: '4px solid #0d9488' }}>
       <h3 style={{ ...sectionTitle, color: '#0d9488', marginBottom: '30px' }}>🟢 Add New Medication Reminder</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 800 ? '1fr' : '1fr 1fr', gap: '30px' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: window.innerWidth < 850 ? '1fr' : '1fr 1fr', 
+        gap: '30px' 
+      }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
             <p style={dataLabel}>MEDICINE NAME</p>
@@ -1571,14 +1656,26 @@ return (
         </div>
       </div>
 
-      <div style={{ marginTop: '30px', display: 'flex', gap: '20px', alignItems: 'flex-end', flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
+      <div style={{ 
+        marginTop: '30px', 
+        display: 'flex', 
+        gap: '20px', 
+        alignItems: window.innerWidth < 600 ? 'stretch' : 'flex-end', 
+        flexDirection: window.innerWidth < 600 ? 'column' : 'row' 
+      }}>
         <div style={{ flex: 1, width: '100%' }}>
           <p style={dataLabel}>NOTES / INSTRUCTIONS</p>
           <input style={inputStyle} value={newMed.desc} onChange={(e) => setNewMed({...newMed, desc: e.target.value})} placeholder="e.g. Take after meals with water" />
         </div>
         <button 
           onClick={saveMedication} 
-          style={{ ...primaryBtn, width: window.innerWidth < 600 ? '100%' : '240px', background: '#0d9488', height: '48px', fontSize: '14px' }}
+          style={{ 
+            ...primaryBtn, 
+            width: window.innerWidth < 600 ? '100%' : '240px', 
+            background: '#0d9488', 
+            height: '48px', 
+            fontSize: '14px' 
+          }}
         >
           SAVE SYSTEM REMINDER
         </button>
@@ -1586,7 +1683,7 @@ return (
     </div>
   </div>
 )}
-{/* 🚨 TAB 5:  EMERGENCY TERMINAL */}
+{/* 🚨 TAB 5: EMERGENCY TERMINAL */}
 {activeTab === 'Emergency' && (
   <div style={{ 
     display: 'flex', 
@@ -1595,32 +1692,33 @@ return (
     width: '100%', 
     maxWidth: '1200px', 
     margin: '0 auto', 
-    animation: 'slideUpFade 0.4s ease-out' 
+    animation: 'slideUpFade 0.4s ease-out',
+    padding: window.innerWidth < 768 ? '10px' : '0' // Extra breathing room for mobile
   }}>
     
-    {/* 🔝 TOP CONTROL HUB: ALL CRITICAL ACTIONS IN ONE ROW */}
+    {/* 🔝 TOP CONTROL HUB: 2x2 on Mobile, 1x4 on PC */}
     <div style={{ 
       display: 'grid', 
-      gridTemplateColumns: window.innerWidth < 850 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
-      gap: '15px' 
+      gridTemplateColumns: window.innerWidth < 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
+      gap: '12px' 
     }}>
       <button onClick={handleSOS} style={emergencyPrimaryBtn('#f43f5e')}>
-        <span style={{ fontSize: '32px' }}>🚨</span>
-        <span style={{ fontSize: '18px' }}>SEND SOS</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>🚨</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>SEND SOS</span>
       </button>
 
       <button onClick={() => window.location.href=`tel:${profile.doctor_phone}`} style={emergencyPrimaryBtn('#0d9488')}>
-        <span style={{ fontSize: '32px' }}>👨‍⚕️</span>
-        <span style={{ fontSize: '18px' }}>CALL DOCTOR</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>👨‍⚕️</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '14px' : '18px' }}>CALL DOCTOR</span>
       </button>
 
       <button onClick={() => window.open('https://www.google.com/maps/search/hospital+near+me')} style={emergencyPrimaryBtn('#64748b')}>
-        <span style={{ fontSize: '32px' }}>📍</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>📍</span>
         <span style={{ fontSize: '14px' }}>FIND ROUTE</span>
       </button>
 
       <button onClick={() => window.location.href=`tel:${profile.emergency_phone}`} style={emergencyPrimaryBtn('#1e293b')}>
-        <span style={{ fontSize: '32px' }}>📞</span>
+        <span style={{ fontSize: window.innerWidth < 768 ? '24px' : '32px' }}>📞</span>
         <span style={{ fontSize: '14px' }}>CALL CONTACT</span>
       </button>
     </div>
@@ -1628,236 +1726,249 @@ return (
     {/* 📇 SECTION 2: DUAL-PANEL DIGITAL EMERGENCY PASS */}
     <div style={{ 
       background: darkMode ? '#0f172a' : '#ffffff', 
-      padding: '35px', borderRadius: '32px', 
+      padding: window.innerWidth < 768 ? '20px' : '35px', 
+      borderRadius: '32px', 
       border: `1px solid ${theme.border}`, 
       textAlign: 'center',
       boxShadow: DS.shadow.medium,
       display: 'grid',
-      // ✅ Split into two columns: QR Code (Left) and Bio-Data (Right)
+      // Switch to single column stack on mobile
       gridTemplateColumns: window.innerWidth < 900 ? '1fr' : '1.2fr 1fr', 
       gap: '30px',
       alignItems: 'center'
     }}>
       
       {/* 🧩 LEFT PANEL: COMPACT QR HUB */}
-<div style={{ 
-  display: 'flex', 
-  flexDirection: 'column', 
-  alignItems: 'center', 
-  borderRight: window.innerWidth < 900 ? 'none' : `1px solid ${theme.border}`, 
-  paddingRight: window.innerWidth < 900 ? 0 : '30px' 
-}}>
-  <h3 style={{ color: theme.text, marginBottom: '20px', fontSize: '20px', fontWeight: '800' }}>Digital Emergency Pass</h3>
-  
-  <div style={{ 
-    display: 'inline-block', background: 'white', padding: '15px', 
-    borderRadius: '24px', boxShadow: '0 15px 50px rgba(0,0,0,0.15)',
-    marginBottom: '15px' // Space for the button directly below
-  }}>
-    <QRCodeCanvas 
-      id="emergency-qr-canvas"
-      value={`NAME: ${profile.full_name}\nBLOOD: ${profile.blood_group}...`} 
-      size={210} 
-      level={"H"}
-    />
-  </div>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        borderRight: window.innerWidth < 900 ? 'none' : `1px solid ${theme.border}`, 
+        borderBottom: window.innerWidth < 900 ? `1px solid ${theme.border}` : 'none', // Line below QR on mobile
+        paddingRight: window.innerWidth < 900 ? 0 : '30px',
+        paddingBottom: window.innerWidth < 900 ? '20px' : 0 
+      }}>
+        <h3 style={{ color: theme.text, marginBottom: '20px', fontSize: '20px', fontWeight: '800' }}>
+          Digital Emergency Pass
+        </h3>
+        
+        <div style={{ 
+          display: 'inline-block', 
+          background: 'white', 
+          padding: window.innerWidth < 768 ? '10px' : '15px', 
+          borderRadius: '24px', 
+          boxShadow: '0 15px 50px rgba(0,0,0,0.15)',
+          marginBottom: '15px' 
+        }}>
+          {/* ✅ SIZE ADJUSTS AUTOMATICALLY FOR MOBILE */}
+          <QRCodeCanvas 
+            id="emergency-qr-canvas"
+            value={`NAME: ${profile.full_name}\nBLOOD: ${profile.blood_group}...`} 
+            size={window.innerWidth < 768 ? 160 : 210} 
+            level={"H"}
+          />
+        </div>
 
-  {/* ✅ BUTTON MOVED EXACTLY UNDER QR CODE */}
-  <button 
-    onClick={() => {
-      const canvas = document.getElementById("emergency-qr-canvas");
-      const pngUrl = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.href = pngUrl;
-      downloadLink.download = `Sanjeevani_Pass.png`;
-      downloadLink.click();
-    }}
-    style={{ 
-      ...primaryBtn, 
-      height: '45px', 
-      background: darkMode ? '#2dd4bf' : '#0d9488', 
-      color: darkMode ? '#020617' : '#ffffff', 
-      border: 'none', 
-      fontSize: '13px', 
-      width: '210px' // Matches QR code width for symmetry
-    }}
-  >
-    💾 SAVE PASS TO GALLERY
-  </button>
-</div>
+        <button 
+          onClick={() => {
+            const canvas = document.getElementById("emergency-qr-canvas");
+            const pngUrl = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = `Sanjeevani_Pass.png`;
+            downloadLink.click();
+          }}
+          style={{ 
+            ...primaryBtn, 
+            height: '45px', 
+            background: darkMode ? '#2dd4bf' : '#0d9488', 
+            color: darkMode ? '#020617' : '#ffffff', 
+            border: 'none', 
+            fontSize: '13px', 
+            // ✅ WIDTH MATCHES QR CANVAS SIZE
+            width: window.innerWidth < 768 ? '160px' : '210px' 
+          }}
+        >
+          💾 SAVE TO GALLERY
+        </button>
+      </div>
 
-       {/* 📋 RIGHT PANEL: VERTICAL BIOMETRICS */}
-       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
-         {/* 🔴 CRITICAL MARKER (Blood Group) */}
-         <div style={{ background: theme.card, padding: '22px', borderRadius: '20px', borderLeft: `8px solid #f43f5e`, borderRight: `1px solid ${theme.border}` }}>
-           <p style={{ ...dataLabel, margin: 0, fontSize: '11px', color: '#f43f5e' }}>CRITICAL MARKER</p>
-           <b style={{ color: theme.text, fontSize: '32px', fontWeight: '900' }}>{profile.blood_group || 'Not Set'}</b>
-         </div>
+      {/* 📋 RIGHT PANEL: VERTICAL BIOMETRICS */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
+        <div style={{ 
+          background: theme.card, 
+          padding: '22px', 
+          borderRadius: '20px', 
+          borderLeft: `8px solid #f43f5e`, 
+          borderRight: `1px solid ${theme.border}`,
+          boxShadow: window.innerWidth < 768 ? '0 4px 6px rgba(0,0,0,0.05)' : 'none'
+        }}>
+          <p style={{ ...dataLabel, margin: 0, fontSize: '11px', color: '#f43f5e' }}>CRITICAL MARKER</p>
+          <b style={{ color: theme.text, fontSize: window.innerWidth < 768 ? '24px' : '32px', fontWeight: '900' }}>
+            {profile.blood_group || 'Not Set'}
+          </b>
+        </div>
 
-         {/* 🟢 CHRONIC CONDITIONS */}
-         <div style={{ background: theme.card, padding: '22px', borderRadius: '20px', borderLeft: `8px solid #0d9488`, borderRight: `1px solid ${theme.border}` }}>
-           <p style={{ ...dataLabel, margin: 0, fontSize: '11px', color: '#0d9488' }}>CHRONIC CONDITIONS</p>
-           <p style={{ color: theme.text, fontSize: '14px', lineHeight: '1.6', margin: '8px 0 0 0' }}>
-             {decryptData(profile.chronic_diseases) || 'None Reported'}
-           </p>
-         </div>
+        <div style={{ 
+          background: theme.card, 
+          padding: '22px', 
+          borderRadius: '20px', 
+          borderLeft: `8px solid #0d9488`, 
+          borderRight: `1px solid ${theme.border}`,
+          boxShadow: window.innerWidth < 768 ? '0 4px 6px rgba(0,0,0,0.05)' : 'none'
+        }}>
+          <p style={{ ...dataLabel, margin: 0, fontSize: '11px', color: '#0d9488' }}>CHRONIC CONDITIONS</p>
+          <p style={{ color: theme.text, fontSize: '14px', lineHeight: '1.6', margin: '8px 0 0 0' }}>
+            {decryptData(profile.chronic_diseases) || 'None Reported'}
+          </p>
+        </div>
 
-         <p style={{ color: theme.subText, fontSize: '12px', lineHeight: '1.5', marginTop: '10px', textAlign: 'center' }}>
-           First responders can scan the code or read this vital HEALTH SUMMARY instantly.
-         </p>
-       </div>
+        <p style={{ color: theme.subText, fontSize: '12px', lineHeight: '1.5', marginTop: '10px', textAlign: 'center' }}>
+          First responders can scan the code or read this vital HEALTH SUMMARY instantly.
+        </p>
+      </div>
     </div>
   </div>
 )}
  
-{/* 🚀 FULL SETTINGS WORKSPACE */}
+{/* 🚀 FULL SETTINGS WORKSPACE (Unified Ribbon on All Subpages) */}
 {activeTab === 'Settings' && (
-  <div style={{ 
-    display: 'flex', 
-    width: '100%', 
-    flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-    height: window.innerWidth < 768 ? 'auto' : '820px', 
-    background: darkMode ? '#020617' : '#f8fafc', 
-    borderRadius: window.innerWidth < 768 ? '0px' : '32px', 
-    overflow: 'hidden',
-    border: `1px solid ${theme.border}`,
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-    transition: 'all 0.4s ease'
-  }}>
+<div style={{ 
+  display: 'flex', 
+  width: '100%', 
+  flexDirection: window.innerWidth < 768 ? 'column' : 'row', 
+  height: window.innerWidth < 768 ? 'auto' : '820px', 
+  background: theme.bg, 
+  borderRadius: window.innerWidth < 768 ? '0px' : '32px', 
+  overflow: 'hidden',
+  border: `1px solid ${theme.border}`,
+  transition: 'all 0.4s ease'
+}}>
     
-    {/* 📋 1. THE COLLAPSIBLE RAIL (LEFT) */}
+    {/* 📋 1. THE NAVIGATION RAIL (Stays Persistent) */}
     <div style={{ 
       width: window.innerWidth < 768 ? '100%' : (isSidebarCollapsed ? '260px' : '85px'), 
       background: darkMode ? '#0f172a' : '#f1f5f9', 
       display: 'flex', 
       flexDirection: window.innerWidth < 768 ? 'row' : 'column', 
-      padding: window.innerWidth < 768 ? '15px 20px' : '40px 0',
-      gap: '25px',
-      borderRight: `1px solid ${theme.border}`,
-      transition: 'width 0.4s ease'
+      padding: window.innerWidth < 768 ? '10px 5px' : '40px 0',
+      gap: window.innerWidth < 768 ? '5px' : '25px',
+      borderRight: window.innerWidth < 768 ? 'none' : `1px solid ${theme.border}`,
+      borderBottom: window.innerWidth < 768 ? `1px solid ${theme.border}` : 'none',
+      transition: 'all 0.4s ease',
+      justifyContent: window.innerWidth < 768 ? 'space-around' : 'flex-start',
+      position: window.innerWidth < 768 ? 'sticky' : 'relative',
+      top: 0,
+      zIndex: 10
     }}>
       {[
-        { id: 'profile', icon: '👤', label: 'Identity Core' },
-        { id: 'medical', icon: '🩺', label: 'Clinical Logs' },
-        { id: 'security', icon: '🔐', label: 'Vault Access' },
-        { id: 'password', icon: '🔑', label: 'Credentials' }
+        { id: 'profile', icon: '👤', label: 'Identity' },
+        { id: 'medical', icon: '🩺', label: 'Clinical' },
+        { id: 'security', icon: '🔐', label: 'Vault' },
+        { id: 'password', icon: '🔑', label: 'Security' }
       ].map(item => (
         <div 
           key={item.id} 
           onClick={() => setSettingsSubTab(item.id)}
           style={{ 
-            display: 'flex', alignItems: 'center', cursor: 'pointer',
-            padding: isSidebarCollapsed ? '12px 25px' : '10px',
-            justifyContent: isSidebarCollapsed ? 'flex-start' : 'center',
-            gap: '18px', width: '100%',
-            backgroundColor: settingsSubTab === item.id ? 'rgba(45, 212, 191, 0.1)' : 'transparent', // ✅ Highlighting
-            borderRadius: '12px',
-            color: settingsSubTab === item.id ? '#2dd4bf' : '#64748b',
-            transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
+            padding: window.innerWidth < 768 ? '8px' : (isSidebarCollapsed ? '12px 25px' : '10px'),
+            justifyContent: 'center', gap: '5px', width: window.innerWidth < 768 ? '25%' : '100%',
+            backgroundColor: settingsSubTab === item.id ? 'rgba(45, 212, 191, 0.1)' : 'transparent',
+            borderRadius: '12px', color: settingsSubTab === item.id ? '#2dd4bf' : '#64748b', transition: '0.3s'
           }}
         >
-          <span style={{ 
-            fontSize: '24px',
-            filter: settingsSubTab === item.id ? 'drop-shadow(0 0 8px rgba(45, 212, 191, 0.4))' : 'none'
-          }}>{item.icon}</span>
-          {isSidebarCollapsed && window.innerWidth >= 768 && (
-            <span style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap', color: settingsSubTab === item.id ? '#2dd4bf' : theme.text }}>
-              {item.label}
-            </span>
-          )}
+          <span style={{ fontSize: window.innerWidth < 768 ? '20px' : '24px' }}>{item.icon}</span>
+          <span style={{ fontSize: '9px', fontWeight: '700', display: 'block' }}>{item.label.toUpperCase()}</span>
         </div>
       ))}
     </div>
 
-    {/* 🚀 2. THE MAIN COMMAND WORKSPACE (CENTER) */}
-    <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-      <div style={{ flex: 1, padding: window.innerWidth < 768 ? '25px' : '50px', overflowY: 'auto' }}>
+    {/* 🚀 2. THE MAIN COMMAND WORKSPACE */}
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, padding: window.innerWidth < 768 ? '15px' : '50px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         
-        {/* 🔝 NEON IDENTITY HERO */}
+        {/* 📸 PERSISTENT SECTION: SINGLE IDENTITY HERO RIBBON (Visible on all sub-tabs) */}
         <div style={{ 
-          background: 'linear-gradient(135deg, #134e4a 0%, #020617 100%)',
-          padding: '35px', borderRadius: '28px', border: '1px solid rgba(45, 212, 191, 0.2)',
-          display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-          justifyContent: 'space-between', alignItems: 'center', gap: '20px',
-          marginBottom: '40px'
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+          padding: window.innerWidth < 768 ? '25px 20px' : '35px', 
+          borderRadius: '28px', border: `1px solid ${theme.border}`,
+          display: 'flex', flexDirection: window.innerWidth < 900 ? 'column' : 'row',
+          alignItems: 'center', gap: '25px', textAlign: window.innerWidth < 900 ? 'center' : 'left',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.1)', justifyContent: 'space-between',
+          marginBottom: '30px' // Space before the sub-tab content starts
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => document.getElementById('photo-upload').click()}>
-              <img src={profile.profile_url} style={{ width: '100px', height: '100px', borderRadius: '25px', border: '3px solid #2dd4bf', objectFit: 'cover' }} alt="User" />
-              <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', background: '#2dd4bf', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #020617' }}>📷</div>
-              <input type="file" id="photo-upload" hidden accept="image/*" onChange={handleProfilePhotoUpload} />
+          <div style={{ display: 'flex', flexDirection: window.innerWidth < 600 ? 'column' : 'row', alignItems: 'center', gap: '25px', flex: 1 }}>
+            <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => document.getElementById('photo-upload-hero').click()}>
+              <img src={profile.profile_url} style={{ width: window.innerWidth < 768 ? '90px' : '110px', height: window.innerWidth < 768 ? '90px' : '110px', borderRadius: '30px', border: `3px solid #2dd4bf`, objectFit: 'cover' }} alt="Avatar" />
+              <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', background: '#2dd4bf', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #0f172a', fontSize: '12px' }}>📸</div>
+              <input type="file" id="photo-upload-hero" hidden accept="image/*" onChange={handleProfilePhotoUpload} />
             </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: '28px', color: '#f8fafc', fontWeight: '900' }}>{profile.full_name}</h1>
-              <p style={{ margin: '5px 0 0 0', color: '#2dd4bf', fontSize: '11px', letterSpacing: '2px', fontWeight: '800' }}>
-                UID: {session.user.id.slice(0, 12).toUpperCase()}
-              </p>
+              <h2 style={{ margin: 0, fontSize: window.innerWidth < 768 ? '20px' : '28px', color: '#f8fafc', fontWeight: '900' }}>{profile.full_name}</h2>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: window.innerWidth < 900 ? 'center' : 'flex-start', marginTop: '10px' }}>
+                <span style={badgeStyle('#2dd4bf')}>UID: {session.user.id.slice(0, 8).toUpperCase()}</span>
+                <span style={badgeStyle('#94a3b8')}>SECURE VAULT ACTIVE</span>
+              </div>
             </div>
           </div>
-          <button 
-            onClick={() => { if (isEditing) handleProfileSave(); setIsEditing(!isEditing); }} 
-            style={{ 
-              background: isEditing ? '#2dd4bf' : 'rgba(45, 212, 191, 0.1)', 
-              color: isEditing ? '#020617' : '#2dd4bf', 
-              border: '1px solid #2dd4bf', padding: '12px 28px', borderRadius: '14px', fontWeight: '900'
-            }}
-          >
-            {isEditing ? "💾 SYNC CHANGES" : "✏️ MODIFY CORE"}
-          </button>
+          <div style={{ width: window.innerWidth < 900 ? '100%' : 'auto' }}>
+            <button onClick={() => { if (isEditing) handleProfileSave(); setIsEditing(!isEditing); }} style={{ background: isEditing ? '#2dd4bf' : 'rgba(45, 212, 191, 0.1)', color: isEditing ? '#020617' : '#2dd4bf', border: '1px solid #2dd4bf', padding: '12px 28px', borderRadius: '14px', fontWeight: '900', width: window.innerWidth < 900 ? '100%' : 'auto' }}>
+              {isEditing ? "💾 SYNC CHANGES" : "✏️ MODIFY CORE"}
+            </button>
+          </div>
         </div>
 
-        {/* 🚀 DYNAMIC MODULES */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '25px' }}>
+        {/* 🚀 DYNAMIC CONTENT MODULES */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
           
           {/* 👤 TAB 1: IDENTITY CORE */}
           {settingsSubTab === 'profile' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'slideUpFade 0.4s' }}>
               <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
-                <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px' }}>PERSONAL IDENTITY</p>
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(3, 1fr)', gap: '30px' }}>
-                  <div><p style={dataLabel}>FULL NAME</p>{isEditing ? <input style={inputStyle} value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.full_name}</b>}</div>
-                  <div><p style={dataLabel}>DATE OF BIRTH</p>{isEditing ? <input type="date" style={inputStyle} value={profile.dob} onChange={e => setProfile({...profile, dob: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.dob || 'N/A'}</b>}</div>
-                  <div><p style={dataLabel}>AGE</p><b style={{ color: theme.text }}>{calculateAge(profile.dob)} Years</b></div>
-                  <div><p style={dataLabel}>BLOOD GROUP</p>{isEditing ? <select style={inputStyle} value={profile.blood_group} onChange={e => setProfile({...profile, blood_group: e.target.value})}>{['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}</select> : <b style={{ color: '#f43f5e', fontSize: '18px' }}>{profile.blood_group}</b>}</div>
-                  <div><p style={dataLabel}>BIOLOGICAL SEX</p>{isEditing ? <select style={inputStyle} value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select> : <b style={{ color: theme.text }}>{profile.gender || 'Not Set'}</b>}</div>
-                  <div><p style={dataLabel}>PHONE / EMAIL</p><b style={{ color: theme.text, fontSize: '12px' }}>{session.user.email}</b></div>
+                <p style={{ fontSize: '10px', fontWeight: '900', color: '#2dd4bf', marginBottom: '20px' }}>CLINICAL BIOMETRICS</p>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '20px' }}>
+                  <div style={{ gridColumn: window.innerWidth < 768 ? 'span 2' : 'span 1' }}><p style={dataLabel}>FULL NAME</p>{isEditing ? <input style={inputStyle} value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.full_name}</b>}</div>
+                  <div><p style={dataLabel}>DOB</p>{isEditing ? <input type="date" style={inputStyle} value={profile.dob} onChange={e => setProfile({...profile, dob: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.dob || 'N/A'}</b>}</div>
+                  <div><p style={dataLabel}>AGE</p><b style={{ color: theme.text }}>{calculateAge(profile.dob)} Yrs</b></div>
+                  <div><p style={dataLabel}>BLOOD</p>{isEditing ? <select style={inputStyle} value={profile.blood_group} onChange={e => setProfile({...profile, blood_group: e.target.value})}>{['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}</select> : <b style={{ color: '#f43f5e' }}>{profile.blood_group}</b>}</div>
+                  <div><p style={dataLabel}>SEX</p>{isEditing ? <select style={inputStyle} value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select> : <b style={{ color: theme.text }}>{profile.gender || 'N/A'}</b>}</div>
+                  <div><p style={dataLabel}>ACCESS</p><b style={{ color: theme.text, fontSize: '11px', display: 'block', overflow: 'hidden' }}>{session.user.email}</b></div>
                 </div>
               </div>
-
+              {/* SOS Logic Restored */}
               <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                  <p style={{ fontSize: '11px', fontWeight: '900', color: '#f43f5e', margin: 0 }}>CARE TEAM & SOS CONTACTS</p>
-                  {isEditing && <button onClick={() => setProfile({...profile, emergency_contacts: [...(profile.emergency_contacts || []), { name: '', phone: '' }]})} style={{ ...badgeStyle('#0d9488'), cursor: 'pointer', border: 'none' }}>+ ADD CONTACT</button>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: '900', color: '#f43f5e' }}>CARE TEAM & SOS</p>
+                  {isEditing && <button onClick={() => setProfile({...profile, emergency_contacts: [...(profile.emergency_contacts || []), { name: '', phone: '' }]})} style={{ ...badgeStyle('#0d9488'), cursor: 'pointer', border: 'none' }}>+ ADD</button>}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', paddingBottom: '20px', borderBottom: `1px solid ${theme.border}` }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', paddingBottom: '15px', borderBottom: `1px solid ${theme.border}` }}>
                     <div><p style={dataLabel}>PRIMARY DOCTOR</p>{isEditing ? <input style={inputStyle} value={profile.doctor_name} onChange={e => setProfile({...profile, doctor_name: e.target.value})} /> : <b style={{ color: theme.text }}>Dr. {profile.doctor_name}</b>}</div>
-                    <div><p style={dataLabel}>DOCTOR PHONE</p>{isEditing ? <input style={inputStyle} value={profile.doctor_phone} onChange={e => setProfile({...profile, doctor_phone: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.doctor_phone}</b>}</div>
-                  </div>
-                  {(profile.emergency_contacts || [{ name: profile.sos_name, phone: profile.emergency_phone }]).map((contact, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '15px', alignItems: 'end' }}>
-                      <div><p style={dataLabel}>SOS NAME</p>{isEditing ? <input style={inputStyle} value={contact.name} onChange={e => { const list = [...profile.emergency_contacts]; list[index].name = e.target.value; setProfile({...profile, emergency_contacts: list}); }} /> : <b style={{ color: theme.text }}>{contact.name}</b>}</div>
-                      <div><p style={dataLabel}>SOS PHONE</p>{isEditing ? <input style={inputStyle} value={contact.phone} onChange={e => { const list = [...profile.emergency_contacts]; list[index].phone = e.target.value; setProfile({...profile, emergency_contacts: list}); }} /> : <b style={{ color: theme.text }}>{contact.phone}</b>}</div>
-                      {isEditing && <button onClick={() => setProfile({...profile, emergency_contacts: profile.emergency_contacts.filter((_, i) => i !== index)})} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', marginBottom: '12px' }}>🗑️</button>}
-                    </div>
-                  ))}
+                    <div><p style={dataLabel}>PHONE</p>{isEditing ? <input style={inputStyle} value={profile.doctor_phone} onChange={e => setProfile({...profile, doctor_phone: e.target.value})} /> : <b style={{ color: theme.text }}>{profile.doctor_phone}</b>}</div>
                 </div>
+                {(profile.emergency_contacts || []).map((contact, index) => (
+                  <div key={index} style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 600 ? '1fr auto' : '1fr 1fr auto', gap: '15px', alignItems: 'end', marginTop: '10px' }}>
+                    <div style={{ gridColumn: window.innerWidth < 600 ? 'span 2' : 'span 1' }}><p style={dataLabel}>SOS NAME</p>{isEditing ? <input style={inputStyle} value={contact.name} onChange={e => { const list = [...profile.emergency_contacts]; list[index].name = e.target.value; setProfile({...profile, emergency_contacts: list}); }} /> : <b style={{ color: theme.text }}>{contact.name}</b>}</div>
+                    <div><p style={dataLabel}>PHONE</p>{isEditing ? <input style={inputStyle} value={contact.phone} onChange={e => { const list = [...profile.emergency_contacts]; list[index].phone = e.target.value; setProfile({...profile, emergency_contacts: list}); }} /> : <b style={{ color: theme.text }}>{contact.phone}</b>}</div>
+                    {isEditing && <button onClick={() => setProfile({...profile, emergency_contacts: profile.emergency_contacts.filter((_, i) => i !== index)})} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}>🗑️</button>}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* 🩺 TAB 2: CLINICAL LOGS */}
           {settingsSubTab === 'medical' && (
-            <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
-              <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px' }}>ENCRYPTED CLINICAL PACKETS</p>
+            <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}`, animation: 'slideUpFade 0.4s' }}>
+              <p style={{ fontSize: '10px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px' }}>ENCRYPTED CLINICAL PACKETS</p>
               <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 1000 ? '1fr' : '1fr 1fr', gap: '25px' }}>
                 <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '25px', borderRadius: '20px' }}>
                   <p style={dataLabel}>CHRONIC CONDITIONS</p>
-                  {isEditing ? <textarea style={{...inputStyle, minHeight: '100px'}} value={decryptData(profile.chronic_diseases)} onChange={e => setProfile({...profile, chronic_diseases: encryptData(e.target.value)})} /> : <p style={{ color: theme.text, lineHeight: '1.6' }}>{decryptData(profile.chronic_diseases)}</p>}
+                  {isEditing ? <textarea style={{...inputStyle, minHeight: '100px'}} value={decryptData(profile.chronic_diseases)} onChange={e => setProfile({...profile, chronic_diseases: encryptData(e.target.value)})} /> : <p style={{ color: theme.text, lineHeight: '1.6' }}>{decryptData(profile.chronic_diseases) || 'None Reported'}</p>}
                 </div>
                 <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '25px', borderRadius: '20px' }}>
                   <p style={dataLabel}>KNOWN ALLERGIES</p>
-                  {isEditing ? <textarea style={{...inputStyle, minHeight: '100px'}} value={decryptData(profile.allergies)} onChange={e => setProfile({...profile, allergies: encryptData(e.target.value)})} /> : <p style={{ color: theme.text, lineHeight: '1.6' }}>{decryptData(profile.allergies)}</p>}
+                  {isEditing ? <textarea style={{...inputStyle, minHeight: '100px'}} value={decryptData(profile.allergies)} onChange={e => setProfile({...profile, allergies: encryptData(e.target.value)})} /> : <p style={{ color: theme.text, lineHeight: '1.6' }}>{decryptData(profile.allergies) || 'No Known Allergies'}</p>}
                 </div>
               </div>
             </div>
@@ -1865,65 +1976,99 @@ return (
 
           {/* 🔐 TAB 3: VAULT ACCESS */}
           {settingsSubTab === 'security' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
-                  <div style={{ background: theme.card, padding: '35px', borderRadius: '24px', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
-                     <p style={{...dataLabel, color: '#64748b'}}>SYSTEM INTEGRITY</p>
-                     <div style={{ fontSize: '48px', fontWeight: '900', color: '#2dd4bf' }}>98%</div>
-                  </div>
-                  <div style={{ background: theme.card, padding: '35px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
-                     <p style={{ fontSize: '10px', fontWeight: '900', color: '#2dd4bf' }}>STORAGE CAPACITY</p>
-                     <b style={{ fontSize: '22px', color: theme.text, display: 'block', margin: '15px 0' }}>1.2 GB / 5.0 GB</b>
-                  </div>
-               </div>
-               <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
-                 <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '20px' }}>AUDIT LOGS</p>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                   {(records || []).slice(0, 4).map((rec, i) => (
-                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.border}` }}>
-                       <span style={{ fontSize: '13px', color: theme.text }}>📄 Decrypted: {rec.name}</span>
-                       <span style={{ fontSize: '11px', color: theme.subText }}>{rec.date}</span>
-                     </div>
-                   ))}
-                 </div>
-               </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', animation: 'slideUpFade 0.4s' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr', gap: '25px' }}>
+                <div style={{ background: theme.card, padding: '35px', borderRadius: '24px', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
+                   <p style={dataLabel}>SYSTEM INTEGRITY</p>
+                   <div style={{ fontSize: '48px', fontWeight: '900', color: '#2dd4bf' }}>98%</div>
+                   <p style={{ fontSize: '10px', color: theme.subText }}>AES-256 Active</p>
+                </div>
+                <div style={{ background: theme.card, padding: '35px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
+                   <p style={dataLabel}>STORAGE CAPACITY</p>
+                   <b style={{ fontSize: '22px', color: theme.text }}>{(records.length * 0.5).toFixed(1)} MB / 5.0 GB</b>
+                   <div style={{ width: '100%', height: '8px', background: theme.border, borderRadius: '10px', marginTop: '10px', overflow: 'hidden' }}>
+                      <div style={{ width: `${(records.length * 0.5 / 5120) * 100}%`, height: '100%', background: '#2dd4bf' }} />
+                   </div>
+                   <p style={{ fontSize: '11px', color: theme.subText, marginTop: '5px' }}>{(5120 - (records.length * 0.5)).toFixed(1)} MB Remaining</p>
+                </div>
+              </div>
             </div>
           )}
-          
-          {/* 🔑 TAB 4: CREDENTIALS */}
-     {settingsSubTab === 'password' && (
-  <div style={{ animation: 'slideUpFade 0.4s', display: 'flex', flexDirection: 'column', gap: '25px' }}>
-    <div style={{ background: theme.card, padding: '40px', borderRadius: '24px', border: `1px solid ${theme.border}`, maxWidth: '500px' }}>
-      <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px' }}>SYSTEM ACCESS CREDENTIALS</p>
+
+          {/* 🔑 TAB 4: CREDENTIALS (MASTER KEY MANAGEMENT) */}
+{settingsSubTab === 'password' && (
+  <div style={{ 
+    animation: 'slideUpFade 0.4s', 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '25px' 
+  }}>
+    <div style={{ 
+      background: theme.card, 
+      padding: window.innerWidth < 768 ? '25px' : '40px', 
+      borderRadius: '24px', 
+      border: `1px solid ${theme.border}`, 
+      maxWidth: '550px',
+      margin: window.innerWidth < 768 ? '0' : '0 auto 0 0' // Centered on mobile, left-aligned on PC
+    }}>
+      <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px', letterSpacing: '1px' }}>
+        SYSTEM ACCESS CREDENTIALS
+      </p>
       
-      {/* 🛡️ VERIFICATION LAYER */}
+      {/* 🛡️ STEP 1: IDENTITY VERIFICATION */}
       <div style={{ marginBottom: '20px' }}>
-        <p style={dataLabel}>CURRENT PASSWORD</p>
-        <input type="password" style={inputStyle} placeholder="Confirm current identity" id="current-pass-field" />
+        <p style={{ ...dataLabel, marginBottom: '8px' }}>CURRENT VAULT PASSWORD</p>
+        <input 
+          type="password" 
+          style={inputStyle} 
+          placeholder="Verify current identity" 
+          id="current-pass-field" 
+        />
       </div>
 
-      <hr style={{ margin: '20px 0', border: 'none', borderTop: `1px solid ${theme.border}` }} />
+      <hr style={{ margin: '25px 0', border: 'none', borderTop: `1px solid ${theme.border}`, opacity: 0.5 }} />
 
+      {/* 🔐 STEP 2: CREDENTIAL ROTATION */}
       <div style={{ marginBottom: '20px' }}>
-        <p style={dataLabel}>NEW ACCESS PASSWORD</p>
-        <input type="password" style={inputStyle} placeholder="Min. 6 characters" id="new-pass-field" />
+        <p style={{ ...dataLabel, marginBottom: '8px' }}>NEW MASTER PASSWORD</p>
+        <input 
+          type="password" 
+          style={inputStyle} 
+          placeholder="Minimum 6 strong characters" 
+          id="new-pass-field" 
+        />
       </div>
 
       <div style={{ marginBottom: '15px' }}>
-        <p style={dataLabel}>CONFIRM NEW PASSWORD</p>
-        <input type="password" style={inputStyle} placeholder="Repeat new password" id="confirm-pass-field" />
+        <p style={{ ...dataLabel, marginBottom: '8px' }}>CONFIRM NEW PASSWORD</p>
+        <input 
+          type="password" 
+          style={inputStyle} 
+          placeholder="Repeat new master password" 
+          id="confirm-pass-field" 
+        />
       </div>
 
-      {/* 🔗 FORGOT PASSWORD LINK */}
-      <div style={{ textAlign: 'right', marginBottom: '25px' }}>
+      {/* 📲 RECOVERY OPTION */}
+      <div style={{ textAlign: 'right', marginBottom: '30px' }}>
         <span 
           onClick={handleForgotPassword}
-          style={{ fontSize: '12px', color: '#2dd4bf', cursor: 'pointer', fontWeight: '700', textDecoration: 'underline' }}
+          style={{ 
+            fontSize: '12px', 
+            color: '#2dd4bf', 
+            cursor: 'pointer', 
+            fontWeight: '700', 
+            textDecoration: 'underline',
+            transition: '0.2s'
+          }}
+          onMouseOver={(e) => e.target.style.color = '#0d9488'}
+          onMouseOut={(e) => e.target.style.color = '#2dd4bf'}
         >
-          Forgot password? Receive OTP via Email 📲
+          Forgot password? Request Reset OTP 📲
         </span>
       </div>
 
+      {/* 🔒 ACTION BUTTON */}
       <button 
         disabled={loading}
         onClick={handleChangePassword}
@@ -1931,18 +2076,27 @@ return (
           ...primaryBtn, 
           background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
           border: `1px solid ${theme.border}`,
-          color: '#2dd4bf'
+          color: '#2dd4bf',
+          height: '50px',
+          fontSize: '14px',
+          letterSpacing: '1px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}
       >
-        {loading ? '🔐 VERIFYING...' : '🔒 UPDATE MASTER KEY'}
+        {loading ? '🔐 VERIFYING VAULT...' : '🔒 UPDATE MASTER KEY'}
       </button>
+
+      <p style={{ color: theme.subText, fontSize: '11px', marginTop: '20px', textAlign: 'center', lineHeight: '1.5' }}>
+        Updating your Master Key will re-sync your clinical encryption tokens across all authorized devices.
+      </p>
     </div>
   </div>
 )}
+          
         </div>
       </div>
     </div>
-  </div>
+</div>
 )}
  </div>
   </main>
@@ -2329,27 +2483,95 @@ VAULT ID: ${session.user.id.slice(0,8)}
 )}
 
 <style>{`
-      .hover-card { transition: all 0.3s ease; }
-      .hover-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
-      .sos-btn { animation: pulse-red 2s infinite; }
-      @keyframes pulse-red { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 78, 80, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(255, 78, 80, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 78, 80, 0); } }
-      @keyframes slideUpFade {
+  /* --- EXISTING ANIMATIONS & HOVER EFFECTS --- */
+  .hover-card { transition: all 0.3s ease; }
+  .hover-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+  
+  .sos-btn { animation: pulse-red 2s infinite; }
+  @keyframes pulse-red { 
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 78, 80, 0.7); } 
+    70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(255, 78, 80, 0); } 
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 78, 80, 0); } 
+  }
+
   @keyframes slideUpFade {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
-.profile-section {
-  animation: slideUpFade 0.4s ease-out;
-  background: #f8fafc;
-  border-radius: 18px;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-  transition: transform 0.2s ease;
-}
+  .profile-section {
+    animation: slideUpFade 0.4s ease-out;
+    background: #f8fafc;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    transition: transform 0.2s ease;
+  }
+  .profile-section:hover { transform: translateY(-2px); }
 
-.profile-section:hover { transform: translateY(-2px); }
-  `}</style>
+  /* --- 📱 MOBILE RESPONSIVENESS OVERRIDES (Breakpoint: 768px) --- */
+  @media (max-width: 768px) {
+    /* 1. Force Sidebar to Icon-Only mode to prevent overlapping content */
+    aside {
+      width: 75px !important;
+      padding: 20px 10px !important;
+    }
+    
+    /* Hide sidebar text/labels on mobile */
+    aside span:not([style*="font-size: 18px"]), aside p, aside h1 {
+      display: none !important;
+    }
+
+    /* 2. Adjust Main Wrapper to start immediately after the icon-sidebar */
+    main {
+      margin-left: 75px !important; 
+      width: calc(100% - 75px) !important;
+      padding: 15px !important;
+    }
+
+    /* 3. Stack all Grid Containers (Dashboard, Trends, Settings) into 1 column */
+    .dashboard-grid, .graph-grid, .settings-container, .grid-stack {
+      grid-template-columns: 1fr !important;
+      gap: 15px !important;
+    }
+
+    /* 4. Fix Top Navbar: Ensure it doesn't squash the 'Vault Badge' */
+    header {
+      padding: 0 15px !important;
+      flex-direction: column !important;
+      height: auto !important;
+      gap: 10px;
+      padding-bottom: 10px !important;
+    }
+
+    /* 5. Responsive Typography */
+    h1 { font-size: 20px !important; }
+    h2 { font-size: 18px !important; }
+    b { font-size: 14px !important; }
+
+    /* 6. Universal Button Optimization for Touch */
+    button {
+      width: 100% !important;
+      height: auto !important;
+      min-height: 45px !important;
+      padding: 12px !important;
+      font-size: 13px !important;
+    }
+
+    /* 7. Fix Table Overflows (Medication & Logs) */
+    .table-container {
+      overflow-x: auto !important;
+      display: block !important;
+      white-space: nowrap !important;
+    }
+    
+    /* Ensure the user photo in hero doesn't disappear */
+    .hero-flex {
+      flex-direction: column !important;
+      text-align: center !important;
+    }
+  }
+`}</style>
   </div>
 );
 };
@@ -2390,9 +2612,6 @@ const dashboardGrid = {
   gap: '25px',
   width: '100%'
 };
-
-const logoText = { fontSize: '28px', color: '#1a535c', margin: 0 };
-const subLogoText = { color: '#4ecdc4', fontWeight: '600', fontSize: '10px', letterSpacing: '2px' };
 const profileIcon = { width: '45px', height: '45px', borderRadius: '50%', backgroundColor: '#1a535c', overflow: 'hidden', cursor: 'pointer' };
 const actionCard = (theme, isDarkMode) => ({ 
   backgroundColor: theme.card, 
@@ -2419,32 +2638,6 @@ const toolTip = { position: 'absolute', top: '-18px', left: '50%', transform: 't
 const medRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: '#f9fdfc', borderRadius: '10px', marginBottom: '8px' };
 const recordRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' };
 const viewBtn = { background: '#1a535c', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' };
-const riskBadge = (l) => ({ padding: '5px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#ffd43b', color: 'white' });
-const profileSidebar = (theme) => ({
-  backgroundColor: theme.card,
-  width: '100%',           // ✅ Default for mobile
-  maxWidth: '420px',       // ✅ Limit width for Laptop/PC
-  height: '100vh',
-  position: 'fixed',
-  right: 0,                // ✅ Aligns to the right side
-  top: 0,
-  padding: '30px',
-  boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
-  zIndex: 2000,            // ✅ Ensure it stays on top of all cards
-  display: 'flex',
-  flexDirection: 'column',
-  transition: '0.3s ease-in-out',
-  overflowY: 'auto'        // ✅ Allows scrolling if content is long
-});
-const sectionBox = (theme, isDark) => ({ 
-  backgroundColor: isDark ? '#1a2234' : '#f8f9fa', // Rule 4: No pure black
-  padding: '16px', 
-  borderRadius: '12px', 
-  marginBottom: '16px', 
-  borderLeft: '4px solid #4ecdc4', 
-  textAlign: 'left',
-  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-});
 const sectionTitle = { margin: '0 0 8px 0', fontSize: '13px', color: '#1a535c', fontWeight: 'bold' };
 const inputStyle = { width: '100%', padding: '10px', margin: '10px 0', borderRadius: '8px', border: '1px solid #ddd' };
 const smallInput = { flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '12px' };
