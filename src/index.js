@@ -11,19 +11,17 @@ root.render(
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+// Performance monitoring
 reportWebVitals();
-// Check if service workers are supported by the browser
+
+// 🚀 CRITICAL FIX: UNREGISTER SERVICE WORKER
+// This code forces the browser to kill the old cache that is causing the blank screen.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(registration => {
-        console.log('✅ Service Worker registered with scope:', registration.scope);
-      })
-      .catch(error => {
-        console.log('❌ Service Worker registration failed:', error);
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister().then(() => {
+        console.log('🗑️ Old Service Worker removed. Fresh code loading...');
       });
+    }
   });
 }
