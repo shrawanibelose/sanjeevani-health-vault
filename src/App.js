@@ -5,29 +5,19 @@ import { QRCodeCanvas } from "qrcode.react";
 import LoginPage from './LoginPage';
 import SignUpPage from './SignUpPage';
 import CryptoJS from 'crypto-js';
-import LandingPage from './LandingPage'; // Add this with your other imports
+import LandingPage from './LandingPage'; 
 import { calculateHealthRisk, getReportAnalysis, getAIReportAnalysis } from './utils/healthEngine';
 
 const SECRET_KEY = 'sanjeevani-ultra-secure-2026';
 const sidebarWidth = '260px';
 const DS = {
-  spacing: (n) => `${n * 6}px`, // Reduced from 8px to 6px for tighter layout
-  radius: '12px', // Sharper corners for a professional feel
-  shadow: {
-    soft: '0 2px 10px rgba(0, 0, 0, 0.04)',
-    medium: '0 6px 20px rgba(0, 0, 0, 0.08)',
-  },
-  input: {
-    padding: '10px 14px', // Reduced padding for smaller boxes
-    borderRadius: '10px',
-    border: '1px solid #e2e8f0',
-    fontSize: '13px' // Slightly smaller text
-  }
-};
+  spacing: (n) => `${n * 6}px`, 
+  radius: '12px',  shadow: {  soft: '0 2px 10px rgba(0, 0, 0, 0.04)', medium: '0 6px 20px rgba(0, 0, 0, 0.08)',},
+  input: { padding: '10px 14px',  borderRadius: '10px', border: '1px solid #e2e8f0',fontSize: '13px' }};
 
 const sidebarStyle = (theme) => ({
   width: sidebarWidth,
-  backgroundColor: '#0f172a', // Professional deep navy/teal
+  backgroundColor: '#0f172a',
   color: 'white',
   display: 'flex',
   flexDirection: 'column',
@@ -100,7 +90,7 @@ const decryptData = (cipher) => {
     return 'Decryption Error'; 
   }
 };
-const verifyMedicalDocument = async (text) => {
+const verifyReport = async (text) => {
   try {
     // We reuse your existing AI analysis engine to verify content
     const response = await getAIReportAnalysis(
@@ -129,16 +119,9 @@ const logAction = async (userId, actionType, description) => {
 };
 
 const Dashboard = ({ session, darkMode, setDarkMode }) => { 
-  const [activeTab, setActiveTab] = useState('Dashboard'); // ✅ This defines the "activeTab" variable
+  const [activeTab, setActiveTab] = useState('Dashboard'); 
   const [settingsSubTab, setSettingsSubTab] = useState('profile'); 
- const theme = {
-    bg: darkMode ? '#020617' : '#f8fafc', // Obsidian only in Dark Mode
-    card: darkMode ? '#0f172a' : '#ffffff',
-    text: darkMode ? '#f8fafc' : '#1e293b',
-    accent: '#2dd4bf', // Neon Mint
-    border: darkMode ? 'rgba(45, 212, 191, 0.1)' : '#e2e8f0',
-    subText: '#94a3b8'
-  };
+ const theme = { bg: darkMode ? '#020617' : '#f8fafc',  card: darkMode ? '#0f172a' : '#ffffff',text: darkMode ? '#f8fafc' : '#1e293b', accent: '#2dd4bf',   border: darkMode ? 'rgba(45, 212, 191, 0.1)' : '#e2e8f0',  subText: '#94a3b8'  };
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -146,25 +129,24 @@ const Dashboard = ({ session, darkMode, setDarkMode }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState("15 Feb 2026");
   const [selectedAnalysis, setSelectedAnalysis] = useState(null); 
-  const [showAnalysisModal, setShowAnalysisModal] = useState(false); // Make sure this exists!
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false); 
   const [records, setRecords] = useState([]);
   const [medications, setMedications] = useState([]);
-  const [customName, setCustomName] = useState(''); // ✅ Fixes 'customName' error
+  const [customName, setCustomName] = useState(''); 
  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(window.innerWidth < 768);
   const [newMed, setNewMed] = useState({ 
   name: '', 
-  times: ['09:00'], // 💊 Array for multiple alarms
-  days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // 📅 Selected days
+  times: ['09:00'], 
+  days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], 
   desc: '' 
 });
   const [showAddMed, setShowAddMed] = useState(false);
   const [category, setCategory] = useState('Pathology');
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeMenu, setActiveMenu] = useState(null); // Fixes the ReferenceError
+  const [activeMenu, setActiveMenu] = useState(null); 
   const [previewUrl, setPreviewUrl] = useState(null);
   const [newPassword, setNewPassword] = useState('');
-  // 🛡️ SECURITY LAYER: Track consent and AI state
   const [hasConsented, setHasConsented] = useState(false); 
   const [aiInsight, setAiInsight] = useState("");
   const [loadingAI, setLoadingAI] = useState(false);
@@ -174,16 +156,12 @@ const Dashboard = ({ session, darkMode, setDarkMode }) => {
   const saved = localStorage.getItem('sanjeevani_notifications');
   return saved ? JSON.parse(saved) : []; 
 });
-
-// ✅ Sync with LocalStorage whenever the list changes
 useEffect(() => {
   localStorage.setItem('sanjeevani_notifications', JSON.stringify(notifications));
 }, [notifications]);
 const healthStatus = records.length > 0 
     ? calculateHealthRisk(records) 
     : { label: 'Awaiting Data', color: '#888', score: 0 };
-
-  // NOW you can safely perform these checks
   const statusLabel = healthStatus?.label || "Stable";
   const isHighRisk = String(statusLabel).toLowerCase().includes('high');
   const isStable = String(statusLabel).toLowerCase().includes('stable');
@@ -199,6 +177,19 @@ const healthStatus = records.length > 0
   }, []); 
 
   useEffect(() => {
+    const fetchProfile = async () => {
+    if (session) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (data && !error) {
+        setProfile(data); // This restores your data from Supabase into the UI
+      }
+    }
+  };
     if (session) {
       fetchRecords();
       logAction(session.user.id, 'LOGIN', 'User accessed the health dashboard');
@@ -222,7 +213,6 @@ useEffect(() => {
   
 useEffect(() => {
   const handleGlobalClick = (event) => {
-    // If the menu is open, we close it unless the user clicked inside the menu itself
     if (showNotifications) {
       setShowNotifications(false);
     }
@@ -241,21 +231,19 @@ const [latency, setLatency] = useState(0);
 useEffect(() => {
   const checkStatus = async () => {
     const start = performance.now();
-    // A lightweight check to Supabase
     await supabase.from('profiles').select('id').limit(1);
     const end = performance.now();
     setLatency(Math.round(end - start));
   };
 
   checkStatus();
-  const interval = setInterval(checkStatus, 30000); // Re-check every 30 seconds
+  const interval = setInterval(checkStatus, 30000); 
   return () => clearInterval(interval);
 }, []);
 
 useEffect(() => {
   const alarmInterval = setInterval(() => {
     const now = new Date();
-    // Get current day (e.g., "Mon") and time in 24h format "HH:mm"
     const currentDay = now.toLocaleDateString('en-GB', { weekday: 'short' }); 
     const currentTime = now.toLocaleTimeString('en-GB', { 
       hour: '2-digit', 
@@ -264,15 +252,11 @@ useEffect(() => {
     });
 
     medications.forEach(med => {
-      // 🛡️ Logic: Check if today is scheduled AND if current time is in the 'times' array
       const dayMatches = med.days.includes(currentDay);
       const timeMatches = med.times.includes(currentTime);
 
       if (dayMatches && timeMatches) {
-        // 🚨 Trigger Browser Alert
-        alert(`💊 SANJEEVANI REMINDER\nMedicine: ${med.name}\nInstructions: ${med.desc || "Take as prescribed"}`);
-        
-        // 🚨 Trigger System Notification
+        alert(`SANJEEVANI REMINDER\nMedicine: ${med.name}\nInstructions: ${med.desc || "Take as prescribed"}`);
         if (Notification.permission === "granted") {
           new Notification("Medication Reminder", { 
             body: `Time for ${med.name}. ${med.desc}`,
@@ -281,29 +265,26 @@ useEffect(() => {
         }
       }
     });
-  }, 60000); // Checks every minute
+  }, 60000); 
 
-  // Ask for permission on load
   if (Notification.permission !== "granted") {
     Notification.requestPermission();
   }
   return () => clearInterval(alarmInterval);
 }, [medications]);
-  
- // In Dashboard component (App.js)
-  const [profile, setProfile] = useState({
-  full_name: session?.user?.user_metadata?.full_name || 'Guest User',
-  dob: session?.user?.user_metadata?.dob || '',
-  blood_group: session?.user?.user_metadata?.blood_group || 'Not Set',
-  allergies: session?.user?.user_metadata?.allergies || 'None',
-  chronic_diseases: session?.user?.user_metadata?.chronic_diseases || 'None',
-  emergency_contacts: [ { name: 'Contact 1', phone: '', relation: 'Primary' } ],
-  sos_name: session?.user?.user_metadata?.sos_name || 'Not Set',
-  doctor_name: session?.user?.user_metadata?.doctor_name || 'Not Assigned',
-  doctor_phone: session?.user?.user_metadata?.doctor_phone || 'N/A',
+
+ const [profile, setProfile] = useState({
+  full_name: 'Synchronizing...', // 🔄 Shows the user the app is working
+  dob: '',
+  blood_group: 'Fetching...',
+  allergies: 'None',
+  chronic_diseases: 'None',
+  emergency_contacts: [ { name: 'Contact 1', phone: '', relation: 'Primary' } ],
+  sos_name: 'Not Set',
+  doctor_name: 'Not Assigned',
+  doctor_phone: 'N/A',
   profile_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'
-  });
-// 🔐 UPDATE: Secure Password Change logic
+});
 const handleChangePassword = async () => {
   const currentPassword = document.getElementById('current-pass-field').value;
   const newPassword = document.getElementById('new-pass-field').value;
@@ -315,7 +296,6 @@ const handleChangePassword = async () => {
 
   setLoading(true);
   try {
-    // 1. Re-verify the user by attempting to sign in with their current password
     const { error: verifyError } = await supabase.auth.signInWithPassword({
       email: session.user.email,
       password: currentPassword,
@@ -323,7 +303,6 @@ const handleChangePassword = async () => {
 
     if (verifyError) throw new Error("Incorrect current password. Verification failed. 🔒");
 
-    // 2. If verified, update to the new password
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     if (updateError) throw updateError;
 
@@ -335,8 +314,6 @@ const handleChangePassword = async () => {
     setLoading(false);
   }
 };
-
-// 🆘 NEW: Forgot Password / OTP Flow
 const handleForgotPassword = async () => {
   const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, {
     redirectTo: window.location.origin,
@@ -356,11 +333,7 @@ const calculateAge = (dob) => {
 const handleProfileUpdate = () => {
   const now = new Date();
   const formattedDate = `${now.getDate()} ${now.toLocaleString('en-GB', { month: 'short' })} ${now.getFullYear()}`;
-  
-  // This updates the local state so the UI changes immediately
   setLastUpdated(formattedDate); 
-  
-  // Now call your existing database save logic
   handleProfileSave(); 
 };
   const handleProfileSave = async () => {
@@ -368,8 +341,6 @@ const handleProfileUpdate = () => {
     alert("⚠️ Required: Name, Blood Group, and SOS Phone!");
     return;
   }
-
-  // 🔐 Encrypting PII (Personally Identifiable Information)
   const encryptedProfile = {
     ...profile,
     allergies: encryptData(profile.allergies),
@@ -397,20 +368,14 @@ const handleProfilePhotoUpload = async (event) => {
   try {
     setUploading(true);
     const fileName = `avatars/${session.user.id}_${Date.now()}`;
-    
-    // 1. Upload to 'reports' bucket (or create a new 'avatars' bucket in Supabase)
     const { error: uploadError } = await supabase.storage
       .from('reports') 
       .upload(fileName, file);
 
     if (uploadError) throw uploadError;
-
-    // 2. Get the public URL
     const { data: { publicUrl } } = supabase.storage
       .from('reports')
       .getPublicUrl(fileName);
-
-    // 3. Update the local profile state and Database
     const updatedProfile = { ...profile, profile_url: publicUrl };
     setProfile(updatedProfile);
     
@@ -431,16 +396,12 @@ const handleProfilePhotoUpload = async (event) => {
   if (!window.confirm("Delete this report permanently?")) return;
 
   try {
-    // 1. DELETE FROM DATABASE TABLE
-    // We pass the numeric ID (bigint) to match the table column
     const { error: dbError } = await supabase
       .from('medical_records')
       .delete()
       .eq('id', reportId); 
 
     if (dbError) throw dbError;
-
-    // 2. DELETE FROM STORAGE BUCKET
     const fileName = reportUrl.split('/').pop();
     await supabase.storage.from('reports').remove([fileName]);
 
@@ -454,7 +415,7 @@ logAction(session.user.id, 'DELETE', `User deleted record ID: ${reportId}`);
 };
  // 1. Ensure this is imported at the top of App.js
 
-const handleFileUpload = async (event) => {
+const uploadReport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
@@ -669,7 +630,7 @@ const handleDeleteMedication = (medId) => {
 
 
 // App.js logic to prevent "Connection error"
-const triggerGeminiAnalysis = async (record) => {
+const analyzeReport = async (record) => {
   setLoadingAI(true);
   try {
     const fullResponse = await getAIReportAnalysis(record.extracted_data, record.type);
@@ -828,7 +789,8 @@ return (
 <div style={{ 
   marginTop: 'auto', 
   paddingTop: '20px', 
-  borderTop: '1px solid rgba(255,255,255,0.05)' 
+  borderTop: '1px solid rgba(255,255,255,0.05)',
+  paddingBottom: window.innerWidth < 768 ? '80px' : '20px' // 📱 Safe zone for mobile
 }}>
   <div 
     onClick={() => setActiveTab('Settings')}
@@ -844,7 +806,6 @@ return (
       transition: '0.3s'
     }}
   >
-    {/* ✅ DYNAMIC PHOTO: Synchronized with profile state */}
     <img 
       src={profile.profile_url} 
       style={{ 
@@ -852,7 +813,7 @@ return (
         height: '35px', 
         borderRadius: '10px', 
         border: activeTab === 'Settings' ? '2px solid #2dd4bf' : 'none',
-        objectFit: 'cover' // Ensures the photo doesn't stretch
+        objectFit: 'cover' 
       }} 
       alt="User" 
     />
@@ -867,9 +828,15 @@ return (
     )}
   </div>
 
-  {/* 🟢 SYSTEM STATUS (Remains as is) */}
-  {!isSidebarCollapsed && (
-    <div style={{ marginTop: '20px', padding: '15px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
+  {/* 🟢 UPDATED SYSTEM STATUS: Visible on mobile and adjusted for touch */}
+  <div style={{ 
+    marginTop: '20px', 
+    padding: isSidebarCollapsed ? '10px 5px' : '15px', 
+    backgroundColor: 'rgba(0,0,0,0.2)', 
+    borderRadius: '12px',
+    textAlign: 'center'
+  }}>
+    {!isSidebarCollapsed && (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div className="sos-btn" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: latency < 300 ? '#2dd4bf' : '#fbbf24' }} />
@@ -877,14 +844,26 @@ return (
         </div>
         <span style={{ fontSize: '9px', color: '#64748b' }}>{latency}ms</span>
       </div>
-      <button 
-        onClick={() => supabase.auth.signOut()} 
-        style={{ width: '100%', background: 'transparent', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.2)', padding: '6px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer' }}
-      >
-        Logout System
-      </button>
-    </div>
-  )}
+    )}
+    
+    <button 
+      onClick={() => supabase.auth.signOut()} 
+      style={{ 
+        width: '100%', 
+        background: isSidebarCollapsed ? 'transparent' : '#f43f5e', // 🔴 Highlight red on mobile
+        color: isSidebarCollapsed ? '#f43f5e' : 'white', 
+        border: isSidebarCollapsed ? '1px solid rgba(244, 63, 94, 0.2)' : 'none', 
+        padding: '12px 6px', // 🟢 Larger touch area
+        borderRadius: '8px', 
+        fontSize: isSidebarCollapsed ? '18px' : '10px', // 🚪 Shows icon only if collapsed
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+      title="Logout System"
+    >
+      {isSidebarCollapsed ? '🚪' : 'LOGOUT SYSTEM'}
+    </button>
+  </div>
 </div>
 </aside>
 
@@ -938,20 +917,24 @@ return (
 
  {/* 🧩 THE DROPDOWN PANEL */}
 {showNotifications && (
-  <div 
-    onClick={(e) => e.stopPropagation()} // ✅ Prevents closing when clicking inside the menu
+ <div 
+    onClick={(e) => e.stopPropagation()} 
     style={{ 
       position: 'absolute', 
-      top: '55px', // ✅ Adjusted spacing
+      top: '60px', 
       right: '0', 
-      width: '320px', 
+      width: window.innerWidth < 768 ? '90vw' : '320px', // 📱 Makes it wider on mobile
       backgroundColor: theme.card, 
       borderRadius: '16px', 
-      boxShadow: '0 20px 40px rgba(0,0,0,0.2)', // ✅ Stronger shadow for depth
+      boxShadow: '0 20px 40px rgba(0,0,0,0.2)', 
       border: `1px solid ${theme.border}`, 
-      zIndex: 2000, // ✅ Highest priority
+      zIndex: 2000, 
       overflow: 'hidden',
-      animation: 'slideDown 0.3s ease-out' // ✅ Uses your existing animation logic
+      animation: 'slideDown 0.3s ease-out',
+      // 🚀 THE CRITICAL MOBILE FIXES:
+      maxHeight: '70vh', // Ensures it never goes taller than 70% of the screen
+      display: 'flex',
+      flexDirection: 'column'
     }}
   >
     {/* 🔝 HEADER WITH MULTI-ACTIONS */}
@@ -979,7 +962,11 @@ return (
       </div>
     </div>
     
-    <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+   <div style={{ 
+      overflowY: 'auto', 
+      flex: 1, 
+      WebkitOverflowScrolling: 'touch' 
+    }}>
       {notifications.length > 0 ? (
         notifications.map(n => (
           <div key={n.id} style={{ 
@@ -1205,7 +1192,7 @@ return (
         </div>
         
         <div style={{ display: 'flex', flexDirection: window.innerWidth < 600 ? 'column' : 'row', gap: '15px', alignItems: 'center' }}>
-          <input type="file" id="vault-upload" hidden onChange={handleFileUpload} />
+          <input type="file" id="vault-upload" hidden onChange={uploadReport} />
           <button 
             onClick={() => document.getElementById('vault-upload').click()}
             style={{ ...primaryBtn, flex: 1, background: theme.bg, color: theme.text, border: `1px dashed ${theme.border}` }}
@@ -1215,7 +1202,7 @@ return (
           <button 
             style={{ ...primaryBtn, flex: 1, background: '#0d9488' }}
             disabled={uploading}
-            onClick={handleFileUpload} 
+            onClick={uploadReport} 
           >
             UPLOAD TO VAULT
           </button>
@@ -1902,11 +1889,9 @@ return (
             </button>
           </div>
         </div>
-
-        {/* 🚀 DYNAMIC CONTENT MODULES */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
           
-          {/* 👤 TAB 1: IDENTITY CORE */}
+          {/*  IDENTITY CORE */}
           {settingsSubTab === 'profile' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'slideUpFade 0.4s' }}>
               <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}` }}>
@@ -1941,7 +1926,7 @@ return (
             </div>
           )}
 
-          {/* 🩺 TAB 2: CLINICAL LOGS */}
+          {/*  CLINICAL LOGS */}
           {settingsSubTab === 'medical' && (
             <div style={{ background: theme.card, padding: '30px', borderRadius: '24px', border: `1px solid ${theme.border}`, animation: 'slideUpFade 0.4s' }}>
               <p style={{ fontSize: '10px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px' }}>ENCRYPTED CLINICAL PACKETS</p>
@@ -1958,7 +1943,7 @@ return (
             </div>
           )}
 
-          {/* 🔐 TAB 3: VAULT ACCESS */}
+          {/* VAULT ACCESS */}
           {settingsSubTab === 'security' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', animation: 'slideUpFade 0.4s' }}>
               <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? '1fr' : '1fr 1fr', gap: '25px' }}>
@@ -1979,7 +1964,7 @@ return (
             </div>
           )}
 
-          {/* 🔑 TAB 4: CREDENTIALS (MASTER KEY MANAGEMENT) */}
+          {/*CREDENTIALS (MASTER KEY MANAGEMENT) */}
 {settingsSubTab === 'password' && (
   <div style={{ 
     animation: 'slideUpFade 0.4s', 
@@ -1993,13 +1978,13 @@ return (
       borderRadius: '24px', 
       border: `1px solid ${theme.border}`, 
       maxWidth: '550px',
-      margin: window.innerWidth < 768 ? '0' : '0 auto 0 0' // Centered on mobile, left-aligned on PC
+      margin: window.innerWidth < 768 ? '0' : '0 auto 0 0' 
     }}>
       <p style={{ fontSize: '11px', fontWeight: '900', color: '#2dd4bf', marginBottom: '25px', letterSpacing: '1px' }}>
         SYSTEM ACCESS CREDENTIALS
       </p>
       
-      {/* 🛡️ STEP 1: IDENTITY VERIFICATION */}
+      {/*  IDENTITY VERIFICATION */}
       <div style={{ marginBottom: '20px' }}>
         <p style={{ ...dataLabel, marginBottom: '8px' }}>CURRENT VAULT PASSWORD</p>
         <input 
@@ -2012,7 +1997,7 @@ return (
 
       <hr style={{ margin: '25px 0', border: 'none', borderTop: `1px solid ${theme.border}`, opacity: 0.5 }} />
 
-      {/* 🔐 STEP 2: CREDENTIAL ROTATION */}
+      {/*  CREDENTIAL ROTATION */}
       <div style={{ marginBottom: '20px' }}>
         <p style={{ ...dataLabel, marginBottom: '8px' }}>NEW MASTER PASSWORD</p>
         <input 
@@ -2033,7 +2018,7 @@ return (
         />
       </div>
 
-      {/* 📲 RECOVERY OPTION */}
+      {/* RECOVERY OPTION */}
       <div style={{ textAlign: 'right', marginBottom: '30px' }}>
         <span 
           onClick={handleForgotPassword}
@@ -2052,7 +2037,7 @@ return (
         </span>
       </div>
 
-      {/* 🔒 ACTION BUTTON */}
+      {/*  ACTION BUTTON */}
       <button 
         disabled={loading}
         onClick={handleChangePassword}
@@ -2067,7 +2052,7 @@ return (
           boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}
       >
-        {loading ? '🔐 VERIFYING VAULT...' : '🔒 UPDATE MASTER KEY'}
+        {loading ? ' VERIFYING VAULT...' : ' UPDATE MASTER KEY'}
       </button>
 
       <p style={{ color: theme.subText, fontSize: '11px', marginTop: '20px', textAlign: 'center', lineHeight: '1.5' }}>
@@ -2085,7 +2070,7 @@ return (
  </div>
   </main>
 
-{/* 🖼️ FILE PREVIEW MODAL (Item 4) */}
+{/* file preview */}
 {previewUrl && (
   <div style={modalOverlay(theme)} onClick={() => setPreviewUrl(null)}>
     <div style={{...qrModal(theme), maxWidth: '800px', width: '90%'}} onClick={e => e.stopPropagation()}>
@@ -2104,19 +2089,16 @@ return (
   </div>
 )}
  {showQR && (
-  /* 🛡️ modalOverlay(theme) centers the card and uses the theme background to hide dashboard text */
   <div style={modalOverlay(theme)} onClick={() => setShowQR(false)}>
     <div style={qrModal(theme)} onClick={e => e.stopPropagation()}>
       
       <div style={modalHeader}>
-        <h2 style={{margin:0, color:'white', fontSize:'18px'}}>🛡️ Emergency Health Pass</h2>
+        <h2 style={{margin:0, color:'white', fontSize:'18px'}}> Emergency Health Pass</h2>
       </div>
       
       <div style={qrContentArea}>
         <p style={{...dataLabel, marginBottom: '5px'}}>SECURE PATIENT ID</p>
         <h3 style={{margin: '0 0 15px 0', color: theme.text}}>{profile.full_name}</h3>
-        
-        {/* 📋 Centered QR Code Container */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -2131,8 +2113,7 @@ return (
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
           }}>
             <QRCodeCanvas 
-              id="emergency-qr-canvas" // ✅ ID added for download feature
-              // ✅ Value updated to show full medical details when scanned
+              id="emergency-qr-canvas" 
               value={`
 🏥 SANJEEVANI EMERGENCY PASS
 ----------------------------
@@ -2150,7 +2131,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
           </div>
         </div>
 
-        {/* 💾 New: Save to Gallery Button */}
+        {/* Save to Gallery Button */}
         <button 
           onClick={() => {
             const canvas = document.getElementById("emergency-qr-canvas");
@@ -2181,10 +2162,10 @@ VAULT ID: ${session.user.id.slice(0,8)}
             gap: '8px'
           }}
         >
-          💾 SAVE TO GALLERY
+           SAVE TO GALLERY
         </button>
 
-        {/* 🚨 Centered Clinical Marker */}
+        {/*  Centered Clinical Marker */}
         <div style={{
           marginTop: '10px', 
           padding: '15px', 
@@ -2201,10 +2182,10 @@ VAULT ID: ${session.user.id.slice(0,8)}
 
         <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
           <button style={callBtn('#ff4e50')} onClick={() => window.location.href = `tel:${profile.emergency_phone}`}>
-            📞 CALL SOS
+             CALL SOS
           </button>
           <button style={callBtn('#1a535c')} onClick={() => window.location.href = `tel:${profile.doctor_phone}`}>
-            👨‍⚕️ CALL DOCTOR
+             CALL DOCTOR
           </button>
         </div>
       </div>
@@ -2213,14 +2194,14 @@ VAULT ID: ${session.user.id.slice(0,8)}
     </div>
   </div>
 )}
-       {/* 🤖 AI ANALYSIS MODAL */}
+       {/* analysis modal */}
 {showAnalysisModal && selectedAnalysis && (
   <div style={modalOverlay(theme)} onClick={() => setShowAnalysisModal(false)}>
     <div 
       style={{
         ...qrModal(theme), 
-        width: '95%',         // ✅ Fills mobile screen
-    maxWidth: '700px',    // ✅ Stays neat on Laptop
+        width: '95%',        
+    maxWidth: '700px',    
     textAlign: 'left', 
     margin: 'auto'
       }} 
@@ -2230,7 +2211,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
       
       <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: '10px', fontWeight: 'bold', color: hasConsented ? '#2b6cb0' : '#2f855a' }}>
-          {hasConsented ? "🔓 CLOUD MODE ENABLED" : "🔒 PRIVATE LOCAL MODE"}
+          {hasConsented ? " CLOUD MODE ENABLED" : " PRIVATE LOCAL MODE"}
         </span>
         <span style={{ fontSize: '9px', color: '#888' }}>Vault ID: {session.user.id.slice(0,8)}</span>
       </div>
@@ -2245,7 +2226,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
               <p style={{ fontSize: '12px', color: theme.text }}>⚙️ Correlating markers with Gemini...</p>
             ) : (
               <div>
-                {/* 🚀 DYNAMIC QUICK STATUS BOX */}
+                {/* staus*/}
     <div style={{ 
       backgroundColor: getRiskStyles(shortSummary).bg, 
       padding: '12px', 
@@ -2272,7 +2253,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
     </div>
             
 
-                {/* 🚀 SECTION 2 - DETAILED ANALYSIS */}
+                {/* ANALYSIS */}
                 <p style={{ fontSize: '11px', fontWeight: 'bold', color: theme.subText, marginBottom: '5px' }}>🔍 DETAILED BREAKDOWN</p>
                 <pre style={{ 
                   whiteSpace: 'pre-wrap', 
@@ -2284,8 +2265,6 @@ VAULT ID: ${session.user.id.slice(0,8)}
                 }}>
                   {aiInsight}
                 </pre>
-                
-                {/* ⬇️ UPDATED DOWNLOAD BUTTON: Now combines both summaries */}
                 <button 
                   style={{ 
                     ...editBtn, 
@@ -2300,7 +2279,6 @@ VAULT ID: ${session.user.id.slice(0,8)}
                   }} 
                   onClick={() => {
                     const element = document.createElement("a");
-                    // Combine both sections for the file download
                     const fileContent = `SANJEEVANI HEALTH ANALYSIS\n\nReport: ${selectedAnalysis.name}\n\nQUICK STATUS:\n${shortSummary}\n\nDETAILED ANALYSIS:\n${aiInsight}`;
                     const file = new Blob([fileContent], {type: 'text/plain'});
                     element.href = URL.createObjectURL(file);
@@ -2309,7 +2287,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
                     element.click();
                   }}
                 >
-                  📥 DOWNLOAD FULL ANALYSIS
+                   DOWNLOAD FULL ANALYSIS
                 </button>
               </div>
             )}
@@ -2322,9 +2300,9 @@ VAULT ID: ${session.user.id.slice(0,8)}
             </p>
             <button 
               style={{ ...primaryBtn, background: '#1a535c', padding: '12px', fontSize: '12px' }} 
-              onClick={() => { setHasConsented(true); triggerGeminiAnalysis(selectedAnalysis); }}
+              onClick={() => { setHasConsented(true); analyzeReport(selectedAnalysis); }}
             >
-              🚀 ACTIVATE AI INSIGHT
+               ACTIVATE AI INSIGHT
             </button>
           </div>
         )}
@@ -2373,7 +2351,6 @@ VAULT ID: ${session.user.id.slice(0,8)}
           value={newMed.name}
           onChange={(e) => setNewMed({ ...newMed, name: e.target.value })}
         />
-        {/* 📝 ADDED DESCRIPTION FIELD */}
 <p style={dataLabel}>DOSAGE INSTRUCTIONS</p>
 <input 
   style={{...inputStyle, backgroundColor: theme.bg, color: theme.text}}
@@ -2429,7 +2406,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
           if (!newMed.name) return alert("Missing name!");
           setMedications([...medications, { ...newMed, id: Date.now() }]);
           setNewMed({ name: '', times: ['09:00'], days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], desc: '' });
-          setShowAddMed(false); // ✅ Close popup after saving
+          setShowAddMed(false); 
         }}>
           SAVE SCHEDULE
         </button>
@@ -2439,7 +2416,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
     </div>
   </div>
 )}
-{/* 🛠️ STEP 3: THE EDIT PROFILE MODAL */}
+{/* edit profile */}
 {showProfile && (
   <div style={modalOverlay(theme)} onClick={() => setShowProfile(false)}>
     <div style={{ ...qrModal(theme), maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
@@ -2459,7 +2436,7 @@ VAULT ID: ${session.user.id.slice(0,8)}
       </div>
 
       <button style={{ ...primaryBtn, marginTop: '20px' }} onClick={() => { handleProfileSave(); setShowProfile(false); }}>
-        💾 SAVE & SECURE PROFILE
+         SAVE & SECURE PROFILE
       </button>
       <button style={closeBtn} onClick={() => setShowProfile(false)}>CANCEL</button>
     </div>
@@ -2564,10 +2541,10 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
-  const [darkMode, setDarkMode] = useState(false); // 🛡️ Shared state
+  const [darkMode, setDarkMode] = useState(false); 
 
   useEffect(() => {
-    // 🛡️ This logic MUST run to detect if a user is logged in
+    // detect if a user is logged in
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSession(session));
     return () => subscription.unsubscribe();
@@ -2575,24 +2552,20 @@ export default function App() {
 
   const theme = getTheme(darkMode); 
 
-  // 1. Logic: Show Landing Page first
+  //  Show Landing Page first
   if (showLanding && !session) {
     return <LandingPage onGetStarted={() => setShowLanding(false)} />;
   }
-
-  // 2. Logic: If no session, show Login/Signup
   if (!session) {
     return isRegistering 
       ? <SignUpPage theme={theme} onBackToLogin={() => setIsRegistering(false)} /> 
       : <LoginPage theme={theme} onShowSignUp={() => setIsRegistering(true)} />;
   }
-
-  // 3. Logic: If logged in, show Dashboard
   return <Dashboard session={session} darkMode={darkMode} setDarkMode={setDarkMode} />;
 }
 const dashboardGrid = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', // ✅ Creates side-by-side cards
+  gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
   gap: '25px',
   width: '100%'
 };
@@ -2602,7 +2575,6 @@ const actionCard = (theme, isDarkMode) => ({
   color: theme.text,
   padding: '24px', 
   borderRadius: '20px', 
-  // 🛡️ Fix: Subtler shadow and clearer border for Dark Mode
   boxShadow: isDarkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.05)', 
   textAlign: 'center',
   border: `1px solid ${isDarkMode ? '#333' : '#eef2f3'}`,
@@ -2610,7 +2582,6 @@ const actionCard = (theme, isDarkMode) => ({
 });
 const graphGrid = { 
   display: 'grid', 
-  // 💻 Laptop: Side-by-side | 📱 Mobile: Stacked
   gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
   gap: '20px', 
   width: '100%',
@@ -2629,7 +2600,7 @@ const addBtn = { background: '#1a535c', color: 'white', border: 'none', padding:
 const dataLabel = { fontSize: '10px', color: '#888', fontWeight: 'bold' };
 const dataValue = { fontWeight: 'bold', fontSize: '14px', color: 'inherit' };
 const emergencyPrimaryBtn = (color) => ({
-  height: '100px', // Match height across all four buttons
+  height: '100px', 
   borderRadius: '20px',
   border: 'none',
   background: color,
@@ -2643,7 +2614,6 @@ const emergencyPrimaryBtn = (color) => ({
   gap: '6px',
   boxShadow: `0 8px 15px ${color}30`,
   transition: 'transform 0.2s ease',
-  // Scale effect when user presses it
   ':active': { transform: 'scale(0.95)' } 
 });
 const primaryBtn = { background: '#1a535c', color: 'white', padding: '15px', borderRadius: '12px', border: 'none', width: '100%', cursor: 'pointer', fontWeight: 'bold' };
@@ -2655,7 +2625,7 @@ const editBtn = {
   cursor: 'pointer',
   fontWeight: 'bold',
   transition: '0.2s',
-  height: 'fit-content' // ✅ Prevents stretching
+  height: 'fit-content' 
 };
 const modalOverlay = (theme) => ({
   position: 'fixed',
@@ -2663,13 +2633,12 @@ const modalOverlay = (theme) => ({
   left: 0,
   width: '100%',
   height: '100%',
-  // 🛡️ Grounded: Use theme background with 95% opacity to hide the dashboard
   backgroundColor: `${theme?.bg || '#0f172a'}F2`, 
   zIndex: 3000,
   display: 'flex',
-  justifyContent: 'center', // ✅ Center Horizontally
-  alignItems: 'center',     // ✅ Center Vertically
-  backdropFilter: 'blur(10px)', // ✨ Professional finish
+  justifyContent: 'center', 
+  alignItems: 'center',   
+  backdropFilter: 'blur(10px)',
   padding: '20px'
 });
 
@@ -2678,12 +2647,12 @@ const qrModal = (theme) => ({
   padding: "30px", 
   borderRadius: "24px", 
   width: '95%',               
-  maxWidth: '450px', // ↔️ Stretched to a professional card width
+  maxWidth: '450px', 
   maxHeight: '90vh',
   overflowY: 'auto',
   color: theme?.text || '#f8fafc',
   border: `1px solid ${theme?.border || '#334155'}`,
-  boxShadow: '0 20px 50px rgba(0,0,0,0.5)', // 🛡️ Heavy shadow for depth
+  boxShadow: '0 20px 50px rgba(0,0,0,0.5)', 
   position: 'relative'
 });
 const modalHeader = { backgroundColor: '#1a535c', padding: '15px', borderRadius: '20px 20px 0 0', margin: '-30px -30px 20px -30px' };
@@ -2732,7 +2701,7 @@ const riskCircle = (color) => ({
   width: '60px',
   height: '60px',
   borderRadius: '50%',
-  backgroundColor: `${color}22`, // Light version of the risk color
+  backgroundColor: `${color}22`, 
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
@@ -2776,10 +2745,10 @@ const secureBadgeStyle = {
   marginLeft: '5px'
 };
 const getTheme = (isDark) => ({
-  bg: isDark ? '#020617' : '#f8fafc',    // 🌑 Deep Obsidian for Full Page
-  card: isDark ? '#0f172a' : '#ffffff',  // Primary surface
-  text: isDark ? '#f8fafc' : '#0f172a',  // High contrast text
-  border: isDark ? 'rgba(45, 212, 191, 0.15)' : '#e2e8f0', // Mint Glow
+  bg: isDark ? '#020617' : '#f8fafc',   
+  card: isDark ? '#0f172a' : '#ffffff',  
+  text: isDark ? '#f8fafc' : '#0f172a',  
+  border: isDark ? 'rgba(45, 212, 191, 0.15)' : '#e2e8f0', 
   subText: isDark ? '#94a3b8' : '#64748b'
 });
 const badgeStyle = (color) => ({
@@ -2802,7 +2771,7 @@ const downloadSummary = (content) => {
 };
 const contentContainer = {
   width: '100%',
-  maxWidth: '1200px', // ✅ Prevents the dashboard from getting TOO wide on giant monitors
+  maxWidth: '1200px',
   padding: '20px',
   boxSizing: 'border-box'
 };

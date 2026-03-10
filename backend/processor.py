@@ -3,9 +3,7 @@ from flask_cors import CORS
 from supabase import create_client
 import os
 app = Flask(__name__)
-CORS(app) # Allows your React frontend to talk to this Python backend
-
-# Database Connection (Use your same Supabase credentials)
+CORS(app) 
 url = "https://tuwalmwezlrwfmnmntdm.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc2MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM5MTYzOTY5LCJleHAiOjIwNTQ3Mzk5Njl9.InJlZ2InR1d2FsbXdlemxyd2Ztbm1udGRt"
 supabase = create_client(url, key)
@@ -16,16 +14,10 @@ def process_report():
         data = request.json
         image_url = data.get('image_url')
         user_id = data.get('user_id')
-
-        # --- EXPERT AI LOGIC PLACEHOLDER ---
-        # In a real scenario, you'd use a model like Tesseract or LayoutLM here
-        # For your project demo, we will simulate the AI categorization
         category = "General Report"
         if "mri" in image_url.lower(): category = "MRI Scan"
         elif "blood" in image_url.lower(): category = "Blood Test"
         elif "xray" in image_url.lower(): category = "X-Ray"
-
-        # 1. Save the metadata to the 'reports' table
         result = supabase.table("reports").insert({
             "user_id": user_id,
             "file_url": image_url,
