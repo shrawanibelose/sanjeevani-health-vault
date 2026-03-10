@@ -175,9 +175,8 @@ const healthStatus = records.length > 0
   useEffect(() => {
     document.title = "Sanjeevani | Dashboard";
   }, []); 
-
-  useEffect(() => {
-    const fetchProfile = async () => {
+useEffect(() => {
+  const fetchProfile = async () => {
     if (session) {
       const { data, error } = await supabase
         .from('profiles')
@@ -186,15 +185,23 @@ const healthStatus = records.length > 0
         .single();
 
       if (data && !error) {
-        setProfile(data); // This restores your data from Supabase into the UI
+        // 🔓 Restore data and ensure encrypted fields are decrypted for the UI
+        setProfile({
+          ...data,
+          allergies: decryptData(data.allergies),
+          chronic_diseases: decryptData(data.chronic_diseases),
+          emergency_contacts: data.emergency_contacts || profile.emergency_contacts
+        });
       }
     }
   };
-    if (session) {
-      fetchRecords();
-      logAction(session.user.id, 'LOGIN', 'User accessed the health dashboard');
-    }
-  }, [session]);
+
+  if (session) {
+    fetchRecords();
+    fetchProfile(); // 🟢 CRITICAL: You must call the function here!
+    logAction(session.user.id, 'LOGIN', 'User accessed the health dashboard');
+  }
+}, [session]);  
   
 useEffect(() => {
   setHasConsented(false); 
@@ -277,8 +284,8 @@ useEffect(() => {
   full_name: 'Synchronizing...', // 🔄 Shows the user the app is working
   dob: '',
   blood_group: 'Fetching...',
-  allergies: 'None',
-  chronic_diseases: 'None',
+  allergies: '..',
+  chronic_diseases: '..',
   emergency_contacts: [ { name: 'Contact 1', phone: '', relation: 'Primary' } ],
   sos_name: 'Not Set',
   doctor_name: 'Not Assigned',
@@ -336,26 +343,30 @@ const handleProfileUpdate = () => {
   setLastUpdated(formattedDate); 
   handleProfileSave(); 
 };
-  const handleProfileSave = async () => {
-  if (!profile.blood_group || !profile.emergency_phone || !profile.full_name) {
-    alert("⚠️ Required: Name, Blood Group, and SOS Phone!");
-    return;
-  }
-  const encryptedProfile = {
-    ...profile,
+const handleProfileSave = async () => {
+  // 1. Prepare a safe data object
+  const profileToSave = {
+    full_name: profile.full_name,
+    // 🟢 Fix: If dob is empty, send null so the database doesn't crash
+    dob: profile.dob || null, 
+    blood_group: profile.blood_group,
+    gender: profile.gender,
+    doctor_name: profile.doctor_name,
+    doctor_phone: profile.doctor_phone,
+    emergency_contacts: profile.emergency_contacts,
+    profile_url: profile.profile_url,
+    // 🔐 Keep your existing encryption
     allergies: encryptData(profile.allergies),
-    chronic_diseases: encryptData(profile.chronic_diseases)
+    chronic_diseases: encryptData(profile.chronic_diseases),
   };
 
   const { error } = await supabase
     .from('profiles')
-    .update(encryptedProfile)
-    .eq('id', session.user.id);
+    .upsert({ id: session.user.id, ...profileToSave });
 
   if (error) {
     alert("Save Error: " + error.message);
   } else {
-    setLastUpdated(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
     setIsEditing(false);
     alert("Profile Secured & Saved! 🛡️");
     logAction(session.user.id, 'SECURITY', 'User updated encrypted medical profile');
@@ -705,36 +716,37 @@ return (
   <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.bg }}>
     
     {/* 🧭 1. FIXED SIDEBAR */}
-   {/* 📋 COLLAPSIBLE SIDEBAR: OBSIDIAN & MINT THEME */}
+{/* 📋 COLLAPSIBLE SIDEBAR: OBSIDIAN & MINT THEME */}
 <aside style={{
   width: isSidebarCollapsed ? '80px' : '260px',
-  backgroundColor: '#0f172a', // Deep Obsidian Slate
+  backgroundColor: '#0f172a',
   color: 'white',
   display: 'flex',
   flexDirection: 'column',
   position: 'fixed',
-  height: '100vh',
+  height: '100vh', // 📱 Full viewport height
   boxSizing: 'border-box',
   zIndex: 1000,
-  padding: isSidebarCollapsed ? '30px 10px' : '30px 20px',
-  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth expansion
-  borderRight: '1px solid rgba(45, 212, 191, 0.1)' // Neon Mint Border
+  padding: isSidebarCollapsed ? '20px 10px' : '20px 15px',
+  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+  borderRight: '1px solid rgba(45, 212, 191, 0.1)',
+  overflow: 'hidden' // 🟢 Prevents the whole sidebar from scrolling
 }}>
   
-  {/* 🏥 BRANDING AREA */}
-  <div style={{ marginBottom: '40px', textAlign: isSidebarCollapsed ? 'center' : 'left' }}>
+  {/* 🏥 BRANDING AREA (Fixed Top) */}
+  <div style={{ flexShrink: 0, marginBottom: '30px', textAlign: isSidebarCollapsed ? 'center' : 'left' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start' }}>
       <span style={{ fontSize: '28px', filter: 'drop-shadow(0 0 8px rgba(45, 212, 191, 0.3))' }}>🏥</span>
       {!isSidebarCollapsed && (
         <div style={{ animation: 'fadeIn 0.3s' }}>
-          <h1 style={{ color: '#2dd4bf', margin: 0, fontSize: '20px', fontWeight: '800' }}>Sanjeevani</h1>
+          <h1 style={{ color: '#2dd4bf', margin: 0, fontSize: '18px', fontWeight: '800' }}>Sanjeevani</h1>
           <p style={{ fontSize: '9px', color: '#94a3b8', margin: 0, letterSpacing: '1px' }}>AI HEALTH SYSTEM</p>
         </div>
       )}
     </div>
   </div>
 
-  {/* 🔘 COLLAPSE TOGGLE (Hidden on Mobile) */}
+  {/* 🔘 COLLAPSE TOGGLE */}
   {window.innerWidth >= 768 && (
     <button 
       onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -745,126 +757,129 @@ return (
         borderRadius: '8px',
         padding: '5px',
         cursor: 'pointer',
-        marginBottom: '20px',
-        fontSize: '12px'
+        marginBottom: '15px',
+        fontSize: '11px',
+        flexShrink: 0
       }}
     >
       {isSidebarCollapsed ? '▶' : '◀ COLLAPSE'}
     </button>
   )}
 
-  {/* 🧭 NAVIGATION */}
-  <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+  {/* 🧭 SCROLLABLE NAVIGATION SECTION */}
+  <nav style={{ 
+    flex: 1, 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '6px',
+    overflowY: 'auto', // 🟢 Allows menu to scroll if screen is short
+    overflowX: 'hidden',
+    paddingRight: '4px',
+    WebkitOverflowScrolling: 'touch' // 🟢 Smooth scroll for iOS
+  }}>
     {['Dashboard', 'Medical Vault', 'AI Trends', 'Medications', 'Emergency', 'Settings'].map(tab => (
       <div 
         key={tab} 
         onClick={() => {
           setActiveTab(tab);
-          if(window.innerWidth < 768) setIsSidebarCollapsed(true); // Auto-close on mobile selection
+          if(window.innerWidth < 768) setIsSidebarCollapsed(true);
         }} 
         style={{
-          padding: '12px 15px',
-          borderRadius: '12px',
+          padding: '10px 12px',
+          borderRadius: '10px',
           cursor: 'pointer',
           backgroundColor: activeTab === tab ? '#0d9488' : 'transparent',
           color: activeTab === tab ? 'white' : '#94a3b8',
           fontWeight: '600',
-          transition: '0.3s',
+          transition: '0.2s',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          justifyContent: isSidebarCollapsed ? 'center' : 'flex-start'
+          justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+          flexShrink: 0 // 🟢 Prevents items from squashing
         }}
         title={isSidebarCollapsed ? tab : ""}
       >
         <span style={{ fontSize: '18px' }}>
           {tab === 'Dashboard' ? '📊' : tab === 'Medical Vault' ? '📁' : tab === 'AI Trends' ? '📈' : tab === 'Medications' ? '💊' : tab === 'Emergency' ? '🚨' : '⚙️'}
         </span>
-        {!isSidebarCollapsed && <span style={{ animation: 'fadeIn 0.3s' }}>{tab}</span>}
+        {!isSidebarCollapsed && <span style={{ animation: 'fadeIn 0.3s', fontSize: '14px' }}>{tab}</span>}
       </div>
     ))}
   </nav>
 
-{/* 👤 PROFILE & SYSTEM FOOTER */}
-<div style={{ 
-  marginTop: 'auto', 
-  paddingTop: '20px', 
-  borderTop: '1px solid rgba(255,255,255,0.05)',
-  paddingBottom: window.innerWidth < 768 ? '80px' : '20px' // 📱 Safe zone for mobile
-}}>
-  <div 
-    onClick={() => setActiveTab('Settings')}
-    style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '12px', 
-      cursor: 'pointer', 
-      padding: '10px', 
-      borderRadius: '12px',
-      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
-      backgroundColor: activeTab === 'Settings' ? 'rgba(45, 212, 191, 0.1)' : 'transparent',
-      transition: '0.3s'
-    }}
-  >
-    <img 
-      src={profile.profile_url} 
-      style={{ 
-        width: '35px', 
-        height: '35px', 
-        borderRadius: '10px', 
-        border: activeTab === 'Settings' ? '2px solid #2dd4bf' : 'none',
-        objectFit: 'cover' 
-      }} 
-      alt="User" 
-    />
-    
-    {!isSidebarCollapsed && (
-      <div style={{ overflow: 'hidden', animation: 'fadeIn 0.3s' }}>
-        <p style={{ margin: 0, fontSize: '13px', color: 'white', fontWeight: '700' }}>
-          {profile.full_name.split(' ')[0]}
-        </p>
-        <p style={{ margin: 0, fontSize: '10px', color: '#64748b' }}>v1.0.4 PREMIUM</p>
-      </div>
-    )}
-  </div>
-
-  {/* 🟢 UPDATED SYSTEM STATUS: Visible on mobile and adjusted for touch */}
+  {/* 👤 FIXED FOOTER (Always at bottom) */}
   <div style={{ 
-    marginTop: '20px', 
-    padding: isSidebarCollapsed ? '10px 5px' : '15px', 
-    backgroundColor: 'rgba(0,0,0,0.2)', 
-    borderRadius: '12px',
-    textAlign: 'center'
+    marginTop: 'auto', 
+    paddingTop: '15px', 
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+    paddingBottom: window.innerWidth < 768 ? '30px' : '15px', // 📱 Lifted for mobile
+    flexShrink: 0, // 🟢 CRITICAL: Footer cannot be squashed
+    zIndex: 1001,
+    backgroundColor: '#0f172a' // 🟢 Solid bg to hide menu items behind it if they overlap
   }}>
-    {!isSidebarCollapsed && (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div className="sos-btn" style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: latency < 300 ? '#2dd4bf' : '#fbbf24' }} />
-          <span style={{ fontSize: '9px', color: '#94a3b8' }}>SYSTEM LIVE</span>
-        </div>
-        <span style={{ fontSize: '9px', color: '#64748b' }}>{latency}ms</span>
-      </div>
-    )}
-    
-    <button 
-      onClick={() => supabase.auth.signOut()} 
+    <div 
+      onClick={() => setActiveTab('Settings')}
       style={{ 
-        width: '100%', 
-        background: isSidebarCollapsed ? 'transparent' : '#f43f5e', // 🔴 Highlight red on mobile
-        color: isSidebarCollapsed ? '#f43f5e' : 'white', 
-        border: isSidebarCollapsed ? '1px solid rgba(244, 63, 94, 0.2)' : 'none', 
-        padding: '12px 6px', // 🟢 Larger touch area
-        borderRadius: '8px', 
-        fontSize: isSidebarCollapsed ? '18px' : '10px', // 🚪 Shows icon only if collapsed
-        cursor: 'pointer',
-        fontWeight: 'bold'
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px', 
+        cursor: 'pointer', 
+        padding: '8px', 
+        borderRadius: '12px',
+        justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+        backgroundColor: activeTab === 'Settings' ? 'rgba(45, 212, 191, 0.1)' : 'transparent',
       }}
-      title="Logout System"
     >
-      {isSidebarCollapsed ? '🚪' : 'LOGOUT SYSTEM'}
-    </button>
+      <img 
+        src={profile.profile_url} 
+        style={{ width: '32px', height: '32px', borderRadius: '8px', border: activeTab === 'Settings' ? '2px solid #2dd4bf' : 'none', objectFit: 'cover' }} 
+        alt="User" 
+      />
+      {!isSidebarCollapsed && (
+        <div style={{ overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'white', fontWeight: '700' }}>{profile.full_name.split(' ')[0]}</p>
+          <p style={{ margin: 0, fontSize: '9px', color: '#64748b' }}>v1.0.4 PREMIUM</p>
+        </div>
+      )}
+    </div>
+
+    <div style={{ 
+      marginTop: '15px', 
+      padding: isSidebarCollapsed ? '8px 4px' : '12px', 
+      backgroundColor: 'rgba(0,0,0,0.2)', 
+      borderRadius: '12px',
+      textAlign: 'center'
+    }}>
+      {!isSidebarCollapsed && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div className="sos-btn" style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: latency < 300 ? '#2dd4bf' : '#fbbf24' }} />
+            <span style={{ fontSize: '8px', color: '#94a3b8' }}>LIVE</span>
+          </div>
+          <span style={{ fontSize: '8px', color: '#64748b' }}>{latency}ms</span>
+        </div>
+      )}
+      
+      <button 
+        onClick={() => supabase.auth.signOut()} 
+        style={{ 
+          width: '100%', 
+          background: '#f43f5e',
+          color: 'white', 
+          border: 'none', 
+          padding: '10px 5px', 
+          borderRadius: '8px', 
+          fontSize: '10px', 
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 12px rgba(244, 63, 94, 0.2)'
+        }}
+      >
+        {isSidebarCollapsed ? '🚪' : 'LOGOUT SYSTEM'}
+      </button>
+    </div>
   </div>
-</div>
 </aside>
 
     {/* 🚀 2. MAIN AREA */}
@@ -915,24 +930,26 @@ return (
     )}
   </button>
 
- {/* 🧩 THE DROPDOWN PANEL */}
+{/* 🧩 THE DROPDOWN PANEL */}
 {showNotifications && (
- <div 
+  <div 
     onClick={(e) => e.stopPropagation()} 
     style={{ 
       position: 'absolute', 
       top: '60px', 
-      right: '0', 
-      width: window.innerWidth < 768 ? '90vw' : '320px', // 📱 Makes it wider on mobile
+      /* 📱 MOBILE FIX: Center the panel on mobile instead of pinning to right: 0 */
+      right: window.innerWidth < 768 ? '5vw' : '0', 
+      left: window.innerWidth < 768 ? '5vw' : 'auto',
+      width: window.innerWidth < 768 ? '90vw' : '320px', 
       backgroundColor: theme.card, 
       borderRadius: '16px', 
-      boxShadow: '0 20px 40px rgba(0,0,0,0.2)', 
+      boxShadow: '0 20px 40px rgba(0,0,0,0.4)', 
       border: `1px solid ${theme.border}`, 
       zIndex: 2000, 
       overflow: 'hidden',
       animation: 'slideDown 0.3s ease-out',
-      // 🚀 THE CRITICAL MOBILE FIXES:
-      maxHeight: '70vh', // Ensures it never goes taller than 70% of the screen
+      /* 🚀 HEIGHT FIX: Use 'dvh' (dynamic viewport height) if supported, or a smaller 'vh' */
+      maxHeight: window.innerWidth < 768 ? '60vh' : '70vh', 
       display: 'flex',
       flexDirection: 'column'
     }}
@@ -943,7 +960,8 @@ return (
       borderBottom: `1px solid ${theme.border}`, 
       display: 'flex', 
       justifyContent: 'space-between', 
-      alignItems: 'center' 
+      alignItems: 'center',
+      flexShrink: 0 // 🟢 Keeps header from disappearing
     }}>
       <b style={{ fontSize: '14px', color: theme.text }}>System Alerts</b>
       <div style={{ display: 'flex', gap: '12px' }}>
@@ -955,35 +973,38 @@ return (
         </span>
         <span 
           style={{ fontSize: '11px', color: '#f43f5e', fontWeight: 'bold', cursor: 'pointer' }}
-          onClick={clearAllNotifications} // ✅ New Functionality
+          onClick={clearAllNotifications} 
         >
           Clear all
         </span>
       </div>
     </div>
     
-   <div style={{ 
+    {/* 📜 SCROLLABLE CONTENT */}
+    <div style={{ 
       overflowY: 'auto', 
       flex: 1, 
-      WebkitOverflowScrolling: 'touch' 
+      WebkitOverflowScrolling: 'touch',
+      /* Custom scrollbar for better look */
+      scrollbarWidth: 'thin'
     }}>
       {notifications.length > 0 ? (
         notifications.map(n => (
           <div key={n.id} style={{ 
             padding: '16px', borderBottom: `1px solid ${theme.border}`, 
-            backgroundColor: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.05)',
+            backgroundColor: n.read ? 'transparent' : 'rgba(13, 148, 136, 0.08)',
             display: 'flex', gap: '12px'
           }}>
             <div style={{ fontSize: '18px' }}>
-              {/* ✅ Preserved existing icons/logic */}
               {n.type === 'ALERT' ? '⚠️' : n.type === 'INSIGHT' ? '🧠' : '⚙️'} 
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <p style={{ 
                 margin: 0, 
                 fontSize: '13px', 
                 color: theme.text, 
-                fontWeight: n.read ? '400' : '600' 
+                fontWeight: n.read ? '400' : '600',
+                lineHeight: '1.4'
               }}>
                 {n.text}
               </p>
@@ -994,7 +1015,6 @@ return (
           </div>
         ))
       ) : (
-        /* 🍃 EMPTY STATE ILLUSTRATION */
         <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subText }}>
           <div style={{ fontSize: '40px', marginBottom: '10px', opacity: 0.5 }}>🍃</div>
           <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>All Clear!</p>
